@@ -1,0 +1,28 @@
+
+> profit-first@0.1.0 build
+> next build
+
+[baseline-browser-mapping] The data in this module is over two months old.  To ensure accurate Baseline data, please update: `npm i baseline-browser-mapping@latest -D`
+   ▲ Next.js 16.0.7 (Turbopack)
+   - Experiments (use with caution):
+     · optimizePackageImports
+
+   Creating an optimized production build ...
+[baseline-browser-mapping] The data in this module is over two months old.  To ensure accurate Baseline data, please update: `npm i baseline-browser-mapping@latest -D`
+
+> Build error occurred
+Error: Turbopack build failed with 1 errors:
+./app/(landing-page)/thank-you/page.jsx:104:3
+Parsing ecmascript source code failed
+[0m [90m 102 |[39m       }
+ [90m 103 |[39m     }
+[31m[1m>[22m[39m[90m 104 |[39m   }[33m,[39m [searchParams])[33m;[39m
+ [90m     |[39m   [31m[1m^[22m[39m
+ [90m 105 |[39m
+ [90m 106 |[39m   [90m// --- Data for displaying on the page ---[39m
+ [90m 107 |[39m   [36mconst[39m displayOrderId [33m=[39m searchParams[33m.[39m[36mget[39m([32m"orderId"[39m)[33m;[39m[0m
+
+Expected ',', got '}'
+
+
+    at <unknown> (./app/(landing-page)/thank-you/page.jsx:104:3)

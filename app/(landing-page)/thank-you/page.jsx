@@ -7,6 +7,51 @@ import { trackPurchase, trackCustomEvent } from "@/lib/fbEvents";
 function ThankYouContent() {
   const searchParams = useSearchParams();
 
+  // ── Confetti from both sides using canvas-confetti ────────────────────────
+  useEffect(() => {
+    let confetti;
+
+    const fire = async () => {
+      const mod = await import("canvas-confetti");
+      confetti = mod.default;
+
+      const colors = [
+        "#ff4d6d", "#ff6b35", "#ffd166", "#06d6a0",
+        "#a855f7", "#f72585", "#4cc9f0", "#f9c74f", "#90be6d",
+      ];
+
+      const shared = {
+        particleCount: 80,
+        spread: 70,
+        colors,
+        ticks: 200,
+        gravity: 1.1,
+        scalar: 1.1,
+        shapes: ["square", "circle"],
+      };
+
+      // First burst
+      confetti({ ...shared, origin: { x: 0, y: 0.6 }, angle: 60 });
+      confetti({ ...shared, origin: { x: 1, y: 0.6 }, angle: 120 });
+
+      // Second burst after 400ms
+      setTimeout(() => {
+        confetti({ ...shared, particleCount: 60, origin: { x: 0, y: 0.5 }, angle: 55 });
+        confetti({ ...shared, particleCount: 60, origin: { x: 1, y: 0.5 }, angle: 125 });
+      }, 400);
+
+      // Third burst after 800ms
+      setTimeout(() => {
+        confetti({ ...shared, particleCount: 40, origin: { x: 0, y: 0.65 }, angle: 65 });
+        confetti({ ...shared, particleCount: 40, origin: { x: 1, y: 0.65 }, angle: 115 });
+      }, 800);
+    };
+
+    fire();
+  }, []);
+  // ─────────────────────────────────────────────────────────────────────────
+
+
   useEffect(() => {
     // --- Get all data from URL parameters ---
     const orderId = searchParams.get("orderId");

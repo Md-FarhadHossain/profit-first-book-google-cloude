@@ -185,7 +185,7 @@ const HeroSection = () => {
             });
 
             // Cloudflare Worker + Browser Pixel Events
-            trackViewContent([PRODUCT_ID], PRODUCT_NAME, PRODUCT_PRICE, CURRENCY);
+            trackViewContent([PRODUCT_ID], PRODUCT_NAME, PRODUCT_PRICE, CURRENCY, getAdvancedMatchingData());
 
         } catch (error) {
             console.error("Initialization Error", error);
@@ -308,7 +308,7 @@ const HeroSection = () => {
             trackAddToCart([PRODUCT_ID], PRODUCT_NAME, PRODUCT_PRICE, CURRENCY, {
               category_name: PRODUCT_CATEGORY,
               tags: ["f-commerce", "book"],
-            });
+            }, getAdvancedMatchingData());
             hasAddedToCart.current = true;
           }
         });
@@ -321,27 +321,11 @@ const HeroSection = () => {
 
   const handleBeginCheckout = () => {
     if (!checkoutStarted) {
-      // Build advanced matching data based on what they might have typed so far
-      let userData = {
-         country: "bd", // Default to Bangladesh based on typical f-commerce behavior
-         st: "dhaka", // Often default for inside/outside dhaka splits until address is typed
-         ct: "dhaka"
-      };
-      
-      if (formData.number) {
-        userData.ph = formData.number.trim();
-      }
-      if (formData.name) {
-         const nameParts = formData.name.trim().split(" ");
-         if (nameParts.length > 0) userData.fn = nameParts[0];
-         if (nameParts.length > 1) userData.ln = nameParts.slice(1).join(" ");
-      }
-
       trackInitiateCheckout([PRODUCT_ID], PRODUCT_NAME, PRODUCT_PRICE, CURRENCY, 1, {
          category_name: PRODUCT_CATEGORY,
          tags: ["f-commerce", "book"],
          subtotal: PRODUCT_PRICE
-      }, userData);
+      }, getAdvancedMatchingData());
       
       setCheckoutStarted(true);
     }

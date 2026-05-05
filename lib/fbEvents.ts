@@ -11,7 +11,8 @@ export const trackViewContent = (
   contentIds: string[], 
   contentName: string, 
   value: number, 
-  currency: string = 'BDT'
+  currency: string = 'BDT',
+  userData: any = {}
 ) => {
   const eventId = generateEventId();
   const customData = {
@@ -23,7 +24,7 @@ export const trackViewContent = (
   };
   
   firePixelEvent('ViewContent', customData, eventId);
-  sendServerEvent('ViewContent', customData, {}, eventId);
+  sendServerEvent('ViewContent', customData, userData, eventId);
 };
 
 export const trackAddToCart = (
@@ -31,7 +32,8 @@ export const trackAddToCart = (
   contentName: string, 
   value: number, 
   currency: string = 'BDT',
-  extraParams: any = {}
+  extraParams: any = {},
+  userData: any = {}
 ) => {
   const eventId = generateEventId();
   const now = new Date();
@@ -61,7 +63,7 @@ export const trackAddToCart = (
   };
 
   firePixelEvent('AddToCart', customData, eventId);
-  sendServerEvent('AddToCart', customData, {}, eventId);
+  sendServerEvent('AddToCart', customData, userData, eventId);
 };
 
 export const trackInitiateCheckout = (

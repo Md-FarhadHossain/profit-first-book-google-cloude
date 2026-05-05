@@ -115,8 +115,8 @@ function ThankYouContent() {
           if (parts.length === 2) return parts.pop().split(';').shift();
           return undefined;
         };
-        userData.fbc = getCookie('_fbc');
-        userData.fbp = getCookie('_fbp');
+        userData.fbc = getCookie('_fbc') || localStorage.getItem('_fbc_constructed');
+        userData.fbp = getCookie('_fbp') || localStorage.getItem('_fbp_backup');
 
         // Client IP from state (already fetched at page load)
         userData.client_ip_address = undefined; // will be filled by server from headers

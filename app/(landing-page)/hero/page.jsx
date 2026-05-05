@@ -350,7 +350,11 @@ const HeroSection = () => {
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     if (name === "name") setFormData(prev => ({ ...prev, name: value }));
-    if (name === "billing_phone") setFormData(prev => ({ ...prev, number: value }));
+    if (name === "billing_phone") {
+      // Allow only numbers and the + sign
+      const sanitizedValue = value.replace(/[^0-9+]/g, '');
+      setFormData(prev => ({ ...prev, number: sanitizedValue }));
+    }
     if (name === "billing_address_1") setFormData(prev => ({ ...prev, address: value }));
   };
 
@@ -517,6 +521,8 @@ const HeroSection = () => {
               name="billing_phone"
               required
               type="tel"
+              pattern="[0-9+]+"
+              title="Please enter a valid phone number (only numbers and + sign allowed)"
               minLength={11}
               maxLength={16}
               className="py-6"

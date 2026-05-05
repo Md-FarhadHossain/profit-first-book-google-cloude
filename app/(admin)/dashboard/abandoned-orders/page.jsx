@@ -68,45 +68,54 @@ const getDeepUserAgentInfo = (uaString) => {
 
 // --- HELPER COMPONENTS ---
 
-const StatusBadge = ({ status }) => {
+const StatusDropdown = ({ status, onStatusChange }) => {
   const styles = {
     Processing: 'bg-blue-500/10 text-blue-400 border-blue-500/20',
-    Shipped: 'bg-purple-500/10 text-purple-400 border-purple-500/20',
-    Delivered: 'bg-green-500/10 text-green-400 border-green-500/20',
     Cancelled: 'bg-red-500/10 text-red-400 border-red-500/20',
-    Returned: 'bg-orange-500/10 text-orange-400 border-orange-500/20',
+    Fake: 'bg-orange-500/10 text-orange-400 border-orange-500/20',
+    Duplicate: 'bg-gray-500/10 text-gray-400 border-gray-500/20',
   };
   const activeStyle = styles[status] || styles.Processing;
 
   return (
-    <span className={`inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium border ${activeStyle}`}>
-      <CircleDot size={10} fill="currentColor" className="opacity-50" />
-      {status || 'Processing'}
-    </span>
+    <div className="relative inline-block">
+      <select
+        value={status || 'Processing'}
+        onChange={(e) => onStatusChange(e.target.value)}
+        className={`appearance-none rounded-md pl-2.5 pr-6 py-1 text-xs font-medium border focus:outline-none cursor-pointer ${activeStyle}`}
+      >
+        <option value="Processing" className="bg-gray-900 text-white">Processing</option>
+        <option value="Cancelled" className="bg-gray-900 text-white">Cancel</option>
+        <option value="Fake" className="bg-gray-900 text-white">Fake</option>
+        <option value="Duplicate" className="bg-gray-900 text-white">Duplicate Order</option>
+      </select>
+      <ChevronDown size={10} className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none opacity-50" />
+    </div>
   );
 };
 
 const CallStatusDropdown = ({ currentStatus, onStatusChange }) => {
     const statusStyles = {
-      Confimed: 'border-green-500/50 bg-green-500/20 text-green-200',
-      'No Answer': 'border-red-500/50 bg-red-500/20 text-red-200',
-      'Pending': 'border-yellow-500/50 bg-yellow-500/20 text-yellow-200'
+      Confirmed: 'border-green-500/50 bg-green-500/20 text-green-400',
+      'No Answer': 'border-red-500/50 bg-red-500/20 text-red-400',
+      'Pending': 'border-yellow-500/50 bg-yellow-500/20 text-yellow-400'
     };
     const currentStyle = statusStyles[currentStatus] || statusStyles['Pending'];
     
     return (
-      <div className="relative w-32"> 
+      <div className="relative w-28 inline-block"> 
         <select
-          value={currentStatus}
+          value={currentStatus || 'Pending'}
           onChange={(e) => onStatusChange(e.target.value)}
-          className={`appearance-none w-full rounded-md border py-1.5 pl-2 pr-2 text-xs font-medium shadow-sm focus:outline-none focus:ring-1 ${currentStyle} transition-colors cursor-pointer bg-gray-900`}
+          className={`appearance-none w-full rounded-md border py-1 pl-2.5 pr-6 text-xs font-medium shadow-sm focus:outline-none transition-colors cursor-pointer ${currentStyle}`}
         >
           {CALL_OPTIONS.map((option) => (
-            <option key={option.value} value={option.value} className="bg-gray-800 text-white">
+            <option key={option.value} value={option.value} className="bg-gray-900 text-white">
               {option.label}
             </option>
           ))}
         </select>
+        <ChevronDown size={10} className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none opacity-50" />
       </div>
     );
 };
@@ -373,9 +382,13 @@ export default function PendingOrdersPage() {
 
   const stats = useMemo(() => {
     const today = new Date().setHours(0,0,0,0);
+    const yesterday = new Date(today);
+    yesterday.setDate(yesterday.getDate() - 1);
+
     return {
       total: orders.length,
       today: orders.filter(o => new Date(o.createdAt).setHours(0,0,0,0) === today).length,
+      yesterday: orders.filter(o => new Date(o.createdAt).setHours(0,0,0,0) === yesterday.getTime()).length,
       abandoned: orders.filter(o => !o.status || o.status === 'Processing').length
     };
   }, [orders]);
@@ -560,24 +573,24 @@ export default function PendingOrdersPage() {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
            <div className="bg-gray-900 border border-gray-800 p-5 rounded-2xl flex items-center justify-between">
              <div>
-               <p className="text-gray-500 text-xs font-bold uppercase tracking-wider mb-1">Total Pending</p>
+               <p className="text-gray-500 text-xs font-bold uppercase tracking-wider mb-1">Total</p>
                <p className="text-3xl font-bold text-white">{stats.total}</p>
              </div>
              <div className="w-10 h-10 bg-blue-500/10 rounded-full flex items-center justify-center text-blue-500"><ShoppingBag size={20} /></div>
            </div>
            <div className="bg-gray-900 border border-gray-800 p-5 rounded-2xl flex items-center justify-between">
              <div>
-               <p className="text-gray-500 text-xs font-bold uppercase tracking-wider mb-1">Need Attention</p>
-               <p className="text-3xl font-bold text-white">{stats.abandoned}</p>
-             </div>
-             <div className="w-10 h-10 bg-red-500/10 rounded-full flex items-center justify-center text-red-500"><AlertTriangle size={20} /></div>
-           </div>
-           <div className="bg-gray-900 border border-gray-800 p-5 rounded-2xl flex items-center justify-between">
-             <div>
-               <p className="text-gray-500 text-xs font-bold uppercase tracking-wider mb-1">Created Today</p>
+               <p className="text-gray-500 text-xs font-bold uppercase tracking-wider mb-1">Today</p>
                <p className="text-3xl font-bold text-white">{stats.today}</p>
              </div>
              <div className="w-10 h-10 bg-green-500/10 rounded-full flex items-center justify-center text-green-500"><Calendar size={20} /></div>
+           </div>
+           <div className="bg-gray-900 border border-gray-800 p-5 rounded-2xl flex items-center justify-between">
+             <div>
+               <p className="text-gray-500 text-xs font-bold uppercase tracking-wider mb-1">Yesterday</p>
+               <p className="text-3xl font-bold text-white">{stats.yesterday}</p>
+             </div>
+             <div className="w-10 h-10 bg-orange-500/10 rounded-full flex items-center justify-center text-orange-500"><Clock size={20} /></div>
            </div>
         </div>
 
@@ -666,15 +679,16 @@ export default function PendingOrdersPage() {
                             </span>
                          </td>
                          <td className="py-4 px-6">
-                            <StatusBadge status={order.status} />
+                            <StatusDropdown 
+                                status={order.status} 
+                                onStatusChange={(newStatus) => handleStatusUpdate(order._id, newStatus)} 
+                            />
                          </td>
                          <td className="py-4 px-6">
-                            <div className={`text-xs px-2 py-1 rounded border inline-flex items-center gap-1
-                               ${order.callStatus === 'Confirmed' ? 'text-green-400 border-green-500/30 bg-green-500/10' : 
-                                 order.callStatus === 'No Answer' ? 'text-red-400 border-red-500/30 bg-red-500/10' : 
-                                 'text-yellow-400 border-yellow-500/30 bg-yellow-500/10'}`}>
-                               {order.callStatus}
-                            </div>
+                            <CallStatusDropdown 
+                                currentStatus={order.callStatus} 
+                                onStatusChange={(newCallStatus) => handleCallStatusUpdate(order._id, newCallStatus)} 
+                            />
                          </td>
                          <td className="py-4 px-6 text-right">
                             <button 

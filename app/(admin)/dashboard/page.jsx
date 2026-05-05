@@ -60,6 +60,7 @@ const ACTION_OPTIONS = [
   { label: "Cancel", value: "Cancelled" },
   { label: "Return", value: "Returned" },
   { label: "👻 Fake Customer", value: "Fake" },
+  { label: "👯 Duplicate Order", value: "Duplicate" },
   { label: "⚠️ Send to Abandoned", value: "Abandoned" },
 ];
 const CALL_OPTIONS = [
@@ -200,6 +201,7 @@ const StatusBadge = ({ status }) => {
     Cancelled: { icon: <XCircle size={14} />, color: "bg-red-600" },
     Returned: { icon: <RotateCcw size={14} />, color: "bg-orange-600" },
     Fake: { icon: <Ghost size={14} />, color: "bg-slate-600" },
+    Duplicate: { icon: <Info size={14} />, color: "bg-teal-600" },
     Abandoned: { icon: <AlertTriangle size={14} />, color: "bg-yellow-600" },
   };
   const config = statusConfig[status] || statusConfig.Processing;
@@ -265,6 +267,7 @@ const ActionDropdown = ({ currentStatus, onStatusChange }) => {
     Returned:
       "border-orange-500/50 bg-orange-900/20 text-orange-200 focus:border-orange-500 focus:ring-orange-500",
     Fake: "border-slate-500/50 bg-slate-900/20 text-slate-200 focus:border-slate-500 focus:ring-slate-500",
+    Duplicate: "border-teal-500/50 bg-teal-900/20 text-teal-200 focus:border-teal-500 focus:ring-teal-500",
     Abandoned:
       "border-yellow-500/50 bg-yellow-900/20 text-yellow-200 focus:border-yellow-500 focus:ring-yellow-500",
     Default:
@@ -1227,7 +1230,9 @@ export default function App() {
       Cancelled: 0,
       Returned: 0,
       Fake: 0,
+      Duplicate: 0,
       "No Answer": 0,
+      "PendingCall": 0,
       "ConfirmedProcessing": 0, // NEW: Count for Ready to Ship
     };
     orders.forEach((order) => {
@@ -1236,12 +1241,19 @@ export default function App() {
         counts[order.status]++;
       } else if (order.status === "Fake") {
         counts.Fake++;
+      } else if (order.status === "Duplicate") {
+        counts.Duplicate++;
       } else {
         counts.Processing++;
       }
       // NEW: Specific Call Status Count - EXCLUDING Fake, Cancelled, Returned, Abandoned
-      if (order.callStatus === "No Answer" && !["Fake", "Cancelled", "Returned", "Abandoned"].includes(order.status)) {
+      if (order.callStatus === "No Answer" && !["Fake", "Duplicate", "Cancelled", "Returned", "Abandoned"].includes(order.status)) {
         counts["No Answer"]++;
+      }
+      
+      // NEW: Pending call status - EXCLUDING Fake, Cancelled, Returned, Abandoned
+      if (order.callStatus === "Pending" && !["Fake", "Duplicate", "Cancelled", "Returned", "Abandoned"].includes(order.status)) {
+        counts["PendingCall"]++;
       }
        
       // NEW: Ready to Ship Logic (Processing AND Confirmed)
@@ -1749,7 +1761,13 @@ export default function App() {
       // Logic for the specific No Answer tab: Call Status is No Answer AND Status is NOT Fake/Cancelled/Returned
       filtered = filtered.filter((o) => 
         o.callStatus === "No Answer" && 
-        !["Fake", "Cancelled", "Returned", "Abandoned"].includes(o.status)
+        !["Fake", "Duplicate", "Cancelled", "Returned", "Abandoned"].includes(o.status)
+      );
+    } else if (statusFilter === "PendingCall") {
+      // Logic for Pending call tab
+      filtered = filtered.filter((o) => 
+        o.callStatus === "Pending" && 
+        !["Fake", "Duplicate", "Cancelled", "Returned", "Abandoned"].includes(o.status)
       );
     } else if (statusFilter === "ConfirmedProcessing") {
       // Logic for Ready to Ship (Processing + Confirmed)
@@ -1776,6 +1794,14 @@ export default function App() {
       color: "text-blue-400",
       bg: "bg-blue-500/10",
       border: "border-blue-500/20",
+    },
+    {
+      label: "Pending",
+      key: "PendingCall",
+      icon: Clock,
+      color: "text-yellow-400",
+      bg: "bg-yellow-500/10",
+      border: "border-yellow-500/20",
     },
     // NEW IN REVIEW WIDGET
     {
@@ -2015,6 +2041,11 @@ export default function App() {
               <span className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium text-white bg-rose-600 shadow-sm">
                 <PhoneOff size={14} />
                 No Answer
+              </span>
+            ) : statusFilter === "PendingCall" ? (
+              <span className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium text-white bg-yellow-600 shadow-sm">
+                <Clock size={14} />
+                Pending
               </span>
             ) : statusFilter === "ConfirmedProcessing" ? (
               <span className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium text-white bg-teal-600 shadow-sm">

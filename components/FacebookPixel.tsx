@@ -4,6 +4,7 @@ import React, { useEffect, Suspense } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
 import Script from "next/script";
 import { setFbcCookie } from "@/utils/fbParams";
+import { trackPageView } from "@/lib/fbEvents";
 
 // Hardcoded as fallback — NEXT_PUBLIC_ vars must exist at BUILD time in Next.js
 const FB_PIXEL_ID = process.env.NEXT_PUBLIC_FB_PIXEL_ID || "2362496434235791";
@@ -19,10 +20,44 @@ function PixelTracker() {
       setFbcCookie(fbclid);
     }
 
-    // Fire PageView on route changes
+    // Helper to read cookies
+    const getCookie = (name: string): string | undefined => {
+      if (typeof document === 'undefined') return undefined;
+      const v = `; ${document.cookie}`;
+      const parts = v.split(`; ${name}=`);
+      if (parts.length === 2) return parts.pop()?.split(';').shift();
+      return undefined;
+    };
+
+    // Build best-available userData for PageView CAPI
+    const pageViewUserData: Record<string, any> = { country: 'bd' };
+    pageViewUserData.fbc = getCookie('_fbc') || localStorage.getItem('_fbc_constructed') || undefined;
+    pageViewUserData.fbp = getCookie('_fbp') || localStorage.getItem('_fbp_backup') || undefined;
+    pageViewUserData.client_user_agent = navigator.userAgent;
+    pageViewUserData.external_id = localStorage.getItem('device_id') || undefined;
+
+    // PII from returning visitors (stored after their first order)
+    const savedPhone = localStorage.getItem('billing_phone');
+    if (savedPhone) {
+      let ph = savedPhone.trim().replace(/\s+/g, '').replace(/-/g, '');
+      if (ph.startsWith('01') && ph.length === 11) ph = '880' + ph;
+      else if (ph.startsWith('+')) ph = ph.replace('+', '');
+      pageViewUserData.ph = ph;
+    }
+    const savedName = localStorage.getItem('billing_name');
+    if (savedName) {
+      const np = savedName.trim().split(' ');
+      if (np.length > 0) pageViewUserData.fn = np[0].toLowerCase();
+      if (np.length > 1) pageViewUserData.ln = np.slice(1).join(' ').toLowerCase();
+    }
+
+    // Fire browser pixel PageView
     if (typeof window !== "undefined" && (window as any).fbq) {
       (window as any).fbq("track", "PageView");
     }
+
+    // Fire server-side CAPI PageView (adds IP + geo on server)
+    trackPageView(pageViewUserData);
   }, [pathname, searchParams]);
 
   return null;

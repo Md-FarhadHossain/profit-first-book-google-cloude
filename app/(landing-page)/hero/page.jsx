@@ -71,7 +71,8 @@ const HeroSection = () => {
          // ct and st are resolved from IP geolocation on the server
       };
       
-      // Phone: normalize and format per Facebook spec (no + prefix, with country code)
+      // Phone: formData first (just typed), then localStorage (returning visitors from past purchases)
+      // This means scroll/video events on returning visitors will carry hashed phone → higher EMQ
       const rawPhone = formData.number || localStorage.getItem("billing_phone");
       if (rawPhone) {
         let ph = rawPhone.trim().replace(/\s+/g, '').replace(/-/g, '');
@@ -80,7 +81,7 @@ const HeroSection = () => {
         ud.ph = ph;
       }
       
-      // Name: must be lowercase for hashing per FB spec
+      // Name: formData first, then localStorage — same rationale (returning visitors)
       const n = formData.name || localStorage.getItem("billing_name");
       if (n) {
          const np = n.trim().split(" ");
@@ -91,7 +92,7 @@ const HeroSection = () => {
       // Client IP (fetched at page load)
       if (clientInfo.ip) ud.client_ip_address = clientInfo.ip;
 
-      // User Agent
+      // User Agent — always send
       if (typeof navigator !== 'undefined') ud.client_user_agent = navigator.userAgent;
 
       // External ID: device_id for cross-device matching

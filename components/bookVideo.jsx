@@ -3,6 +3,45 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { trackCustomEvent } from "@/lib/fbEvents";
 
+// ─── Resolve best available user signals for EMQ ──────────────────────────────
+const getVideoUserData = () => {
+  if (typeof window === 'undefined') return {};
+  const ud = { country: 'bd' };
+
+  // fbc — Facebook Click ID (cookie > localStorage)
+  const getCookie = (name) => {
+    const v = `; ${document.cookie}`;
+    const parts = v.split(`; ${name}=`);
+    if (parts.length === 2) return parts.pop().split(';').shift();
+    return undefined;
+  };
+  ud.fbc = getCookie('_fbc') || localStorage.getItem('_fbc_constructed') || undefined;
+  ud.fbp = getCookie('_fbp') || localStorage.getItem('_fbp_backup') || undefined;
+
+  // User Agent — always available
+  ud.client_user_agent = navigator.userAgent;
+
+  // External ID — device ID for cross-device matching
+  ud.external_id = localStorage.getItem('device_id') || undefined;
+
+  // PII for returning visitors (stored after their first purchase)
+  const savedPhone = localStorage.getItem('billing_phone');
+  if (savedPhone) {
+    let ph = savedPhone.trim().replace(/\s+/g, '').replace(/-/g, '');
+    if (ph.startsWith('01') && ph.length === 11) ph = '880' + ph;
+    else if (ph.startsWith('+')) ph = ph.replace('+', '');
+    ud.ph = ph;
+  }
+  const savedName = localStorage.getItem('billing_name');
+  if (savedName) {
+    const np = savedName.trim().split(' ');
+    if (np.length > 0) ud.fn = np[0].toLowerCase();
+    if (np.length > 1) ud.ln = np.slice(1).join(' ').toLowerCase();
+  }
+
+  return ud;
+};
+
 export default function App() {
   const [isPlaying, setIsPlaying] = useState(false);
   const playerRef = useRef(null);
@@ -68,7 +107,7 @@ export default function App() {
              content_name: 'Book Overview Video',
              content_type: 'video',
              video_id: 'f__152v8rfE'
-         });
+         }, getVideoUserData());
       }
 
       // Track Video_Watch_50 interval
@@ -85,7 +124,7 @@ export default function App() {
                    content_name: 'Book Overview Video',
                    content_type: 'video',
                    video_id: 'f__152v8rfE'
-                });
+                }, getVideoUserData());
             }
          }, 1000);
       }

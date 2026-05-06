@@ -1,10 +1,12 @@
 // lib/fbEvents.ts
 import { generateEventId, firePixelEvent, sendServerEvent } from './fbcapi';
 
-export const trackPageView = () => {
+export const trackPageView = (
+  userData: { fbc?: string; fbp?: string; client_ip_address?: string; client_user_agent?: string; external_id?: string; country?: string } = {}
+) => {
   const eventId = generateEventId();
   firePixelEvent('PageView', {}, eventId);
-  sendServerEvent('PageView', {}, {}, eventId);
+  sendServerEvent('PageView', {}, userData, eventId);
 };
 
 export const trackViewContent = (

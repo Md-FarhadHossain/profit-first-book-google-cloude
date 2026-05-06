@@ -185,7 +185,16 @@ const HeroSection = () => {
             });
 
             // Cloudflare Worker + Browser Pixel Events
-            trackViewContent([PRODUCT_ID], PRODUCT_NAME, PRODUCT_PRICE, CURRENCY, getAdvancedMatchingData());
+            // Build userData inline — React state (clientInfo.ip) hasn't updated yet at this point
+            const viewContentUserData = {
+              country: 'bd',
+              client_ip_address: ip,
+              client_user_agent: ua,
+              external_id: deviceId,
+              fbc: getClientCookie('_fbc') || localStorage.getItem('_fbc_constructed') || undefined,
+              fbp: getClientCookie('_fbp') || localStorage.getItem('_fbp_backup') || undefined,
+            };
+            trackViewContent([PRODUCT_ID], PRODUCT_NAME, PRODUCT_PRICE, CURRENCY, viewContentUserData);
 
         } catch (error) {
             console.error("Initialization Error", error);

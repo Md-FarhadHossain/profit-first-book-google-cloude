@@ -42,6 +42,17 @@ export default function RootLayout({
       <head>
          {/* FontAwesome - Loaded in head for immediate availability to prevent flickering, but widely cached */}
          <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
+         
+         {/* Google tag (gtag.js) */}
+         <Script strategy="afterInteractive" src="https://www.googletagmanager.com/gtag/js?id=AW-18148655829" />
+         <Script id="google-ads-tag" strategy="afterInteractive">
+           {`
+             window.dataLayer = window.dataLayer || [];
+             function gtag(){dataLayer.push(arguments);}
+             gtag('js', new Date());
+             gtag('config', 'AW-18148655829');
+           `}
+         </Script>
       </head>
       <body
         className={`${geistSans.variable} ${geistMono.variable} ${hindSiliguri.variable} antialiased ${myFont.className}`}

@@ -24,7 +24,7 @@ const getDeviceId = () => {
   return "unknown";
 };
 
-const PRODUCT_PRICE = 550;
+const PRODUCT_PRICE = 490;
 const PRODUCT_ID = "973";
 const PRODUCT_NAME = "Profit First for F-Commerce";
 const PRODUCT_CATEGORY = "Books";

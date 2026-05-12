@@ -148,7 +148,6 @@ export const trackPurchase = (
     post_id: extraParams.post_id || "913",
     post_type: extraParams.post_type || "product",
     predicted_ltv: extraParams.predicted_ltv,
-    profit_margin: extraParams.profit_margin,
     shipping: extraParams.shipping_cost,
     shipping_cost: extraParams.shipping_cost,
     tags: extraParams.tags || ["f-commerce", "book", "purchase"],

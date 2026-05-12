@@ -130,7 +130,6 @@ function ThankYouContent() {
       
       // Basic static LTV projection rule: Repeat buyers often spend ~2.5x more over a year
       const predictedLtv = isNewCustomer ? totalValue * 1.5 : totalValue * 2.5;
-      const PRODUCT_PROFIT = 200; // Static calculation for this book for now (Price - Print Cost - Avg Ad Cost)
 
       trackPurchase(
         [productId], 
@@ -144,7 +143,6 @@ function ThankYouContent() {
           category_name: categoryName,
           coupon_used: "No",
           predicted_ltv: predictedLtv, 
-          profit_margin: PRODUCT_PROFIT * itemQuantity,
           new_customer: isNewCustomer,
           shipping: shippingValue,
           shipping_cost: shippingValue,

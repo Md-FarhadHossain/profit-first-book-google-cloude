@@ -90,7 +90,7 @@ export default function HeroSection() {
                   ২৫% ছাড়!
                 </div>
                 <div className="flex justify-center lg:justify-start items-end gap-4 pt-2">
-                  <span className="text-4xl lg:text-5xl font-bold text-[#28a745]">৳ ৪৯০</span>
+                  <span className="text-4xl lg:text-5xl font-bold text-[#28a745]">৳৫৫০</span>
                   <span className="text-2xl lg:text-3xl line-through text-gray-400 mb-1">৳ ৭৯০</span>
                 </div>
               </div>

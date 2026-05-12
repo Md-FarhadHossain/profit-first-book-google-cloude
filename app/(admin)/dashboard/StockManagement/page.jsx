@@ -187,7 +187,7 @@ export default function StockManagementPage() {
     }
   };
 
-  const stockValue = stock * 490; // Remaining stock × selling price
+  const stockValue = stock * 550; // Remaining stock × selling price
 
   // ── Financial Calculators ──────────────────────────────────────────────────
   const totalExpensesAll = calculateTotalExpenses();
@@ -428,7 +428,7 @@ export default function StockManagementPage() {
           ) : (
             <div className="text-4xl font-bold tracking-tighter text-cyan-300 drop-shadow-md break-all text-center mt-2">৳ {stockValue.toLocaleString()}</div>
           )}
-          <span className="text-xs text-gray-500 mt-3 uppercase tracking-wider font-semibold">Remaining stock @ ৳490 / unit</span>
+          <span className="text-xs text-gray-500 mt-3 uppercase tracking-wider font-semibold">Remaining stock @ ৳550 / unit</span>
         </div>
 
         {/* New Payment Amount Card */}

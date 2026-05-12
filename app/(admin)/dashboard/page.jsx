@@ -1235,17 +1235,53 @@ export default function App() {
       "PendingCall": 0,
       "ConfirmedProcessing": 0, // NEW: Count for Ready to Ship
     };
+
+    let fromDate = null;
+    let toDate = null;
+    
+    if (dateRange && dateRange.from) {
+      fromDate = new Date(dateRange.from);
+      fromDate.setHours(0, 0, 0, 0);
+      toDate = dateRange.to ? new Date(dateRange.to) : new Date(dateRange.from);
+      toDate.setHours(23, 59, 59, 999);
+    } else {
+      const now = new Date();
+      fromDate = new Date(now.getFullYear(), now.getMonth(), 1);
+      toDate = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
+    }
+
     orders.forEach((order) => {
-      // Standard Status Count
-      if (counts[order.status] !== undefined) {
-        counts[order.status]++;
-      } else if (order.status === "Fake") {
-        counts.Fake++;
-      } else if (order.status === "Duplicate") {
-        counts.Duplicate++;
-      } else {
-        counts.Processing++;
+      // Date Logic for Delivered, Cancelled, Returned
+      let referenceDate = new Date(order.date);
+      if (order.status === "Delivered" && order.deliveredAt) {
+        referenceDate = new Date(order.deliveredAt);
+      } else if (order.status === "Returned" && order.returnedAt) {
+        referenceDate = new Date(order.returnedAt);
+      } else if (order.status === "Cancelled") {
+        if (order.cancelledAt) referenceDate = new Date(order.cancelledAt);
+        else if (order.updatedAt) referenceDate = new Date(order.updatedAt);
       }
+
+      const isTerminalState = ["Delivered", "Cancelled", "Returned"].includes(order.status);
+      const isInDateRange = referenceDate >= fromDate && referenceDate <= toDate;
+
+      if (isTerminalState) {
+        if (isInDateRange) {
+          counts[order.status]++;
+        }
+      } else {
+        // Standard Status Count
+        if (counts[order.status] !== undefined) {
+          counts[order.status]++;
+        } else if (order.status === "Fake") {
+          counts.Fake++;
+        } else if (order.status === "Duplicate") {
+          counts.Duplicate++;
+        } else {
+          counts.Processing++;
+        }
+      }
+
       // NEW: Specific Call Status Count - EXCLUDING Fake, Cancelled, Returned, Abandoned
       if (order.callStatus === "No Answer" && !["Fake", "Duplicate", "Cancelled", "Returned", "Abandoned"].includes(order.status)) {
         counts["No Answer"]++;
@@ -1262,7 +1298,7 @@ export default function App() {
       }
     });
     return counts;
-  }, [orders]);
+  }, [orders, dateRange]);
   useEffect(() => {
     const timer = setInterval(() => setCurrentTime(new Date()), 60000);
     return () => clearInterval(timer);
@@ -1752,8 +1788,19 @@ export default function App() {
       toDate.setHours(23, 59, 59, 999);
        
       filtered = filtered.filter((o) => {
-        const orderDate = new Date(o.date);
-        return orderDate >= fromDate && orderDate <= toDate;
+        let referenceDate = new Date(o.date);
+        
+        // If filtering by a terminal status, use its specific timestamp
+        if (statusFilter === 'Delivered' && o.status === 'Delivered' && o.deliveredAt) {
+          referenceDate = new Date(o.deliveredAt);
+        } else if (statusFilter === 'Returned' && o.status === 'Returned' && o.returnedAt) {
+          referenceDate = new Date(o.returnedAt);
+        } else if (statusFilter === 'Cancelled' && o.status === 'Cancelled') {
+          if (o.cancelledAt) referenceDate = new Date(o.cancelledAt);
+          else if (o.updatedAt) referenceDate = new Date(o.updatedAt);
+        }
+        
+        return referenceDate >= fromDate && referenceDate <= toDate;
       });
     }
      

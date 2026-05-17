@@ -66,6 +66,13 @@ function ThankYouContent() {
 
       // --- Prevent duplicate tracking on page reload ---
       const trackedOrders = JSON.parse(localStorage.getItem('tracked_orders') || '[]');
+      
+      // FIX: Require an actual order ID to prevent ghost conversions from bots or direct visits
+      if (!orderId) {
+        console.log("No order ID found. Skipping purchase tracking.");
+        return;
+      }
+
       if (trackedOrders.includes(orderId)) {
         console.log("Purchase already tracked for order ID:", orderId);
         return; // Skip tracking if already fired

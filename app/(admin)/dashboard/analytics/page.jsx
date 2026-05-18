@@ -243,10 +243,10 @@ const StatCard = ({ title, value, trend, trendValue, icon: Icon, theme = 'blue',
 };
 
 // Shopify-style stats bar component — dark theme to match the dashboard
-const ShopifyStatsBar = ({ sessionsCount, revenue, ordersCount, conversionRate, chartData }) => {
-  // Only show conversion rate if sessions data is meaningful (more than 10 sessions collected)
-  const isSessionDataMature = (sessionsCount || 0) >= 10;
-  const displayConversion = isSessionDataMature ? `${conversionRate}%` : 'Collecting…';
+const ShopifyStatsBar = ({ sessionsCount, revenue, ordersCount, conversionRate, chartData, rangeLabel = 'Today' }) => {
+  // For today-scoped data: any session is valid — it's a real apples-to-apples comparison
+  const isSessionDataMature = (sessionsCount || 0) >= 1;
+  const displayConversion = isSessionDataMature ? `${conversionRate}%` : 'No visits yet';
 
   const items = [
     {
@@ -291,6 +291,9 @@ const ShopifyStatsBar = ({ sessionsCount, revenue, ordersCount, conversionRate, 
       <div className="flex items-center gap-2 px-6 py-3 border-b border-gray-700/50 bg-gray-900/30">
         <Activity size={14} className="text-sky-400" />
         <span className="text-xs font-semibold text-gray-400 uppercase tracking-widest">Conversion Overview</span>
+        <span className="ml-2 text-[10px] font-bold px-2 py-0.5 rounded-full bg-sky-500/10 border border-sky-500/20 text-sky-400 uppercase tracking-widest">
+          {rangeLabel}
+        </span>
         <span className="ml-auto flex items-center gap-1.5 text-[10px] font-medium text-emerald-400">
           <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse inline-block" />
           Live
@@ -324,26 +327,24 @@ const ShopifyStatsBar = ({ sessionsCount, revenue, ordersCount, conversionRate, 
 
               {/* Mini sparkline */}
               <div className="w-20 h-9 shrink-0 opacity-80 group-hover:opacity-100 transition-opacity">
-                <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={chartData || []}>
-                    <defs>
-                      <linearGradient id={`dark-sparkline-${index}`} x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor={item.accentColor} stopOpacity={0.4} />
-                        <stop offset="95%" stopColor={item.accentColor} stopOpacity={0} />
-                      </linearGradient>
-                    </defs>
-                    <Area
-                      type="monotone"
-                      dataKey="orders"
-                      stroke={item.strokeColor}
-                      strokeWidth={2}
-                      fillOpacity={1}
-                      fill={`url(#dark-sparkline-${index})`}
-                      isAnimationActive={false}
-                      dot={false}
-                    />
-                  </AreaChart>
-                </ResponsiveContainer>
+                <AreaChart width={80} height={36} data={chartData || []}>
+                  <defs>
+                    <linearGradient id={`dark-sparkline-${index}`} x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor={item.accentColor} stopOpacity={0.4} />
+                      <stop offset="95%" stopColor={item.accentColor} stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <Area
+                    type="monotone"
+                    dataKey="orders"
+                    stroke={item.strokeColor}
+                    strokeWidth={2}
+                    fillOpacity={1}
+                    fill={`url(#dark-sparkline-${index})`}
+                    isAnimationActive={false}
+                    dot={false}
+                  />
+                </AreaChart>
               </div>
             </div>
           </div>
@@ -914,6 +915,7 @@ export default function AnalyticsDashboard() {
     // --- VARIABLES ---
     let totalRevenue = 0; 
     let rangeRevenue = 0; 
+    let todayRevenue = 0;
     let todayOrders = 0;
     let yesterdayOrders = 0;
     
@@ -976,6 +978,7 @@ export default function AnalyticsDashboard() {
       // 2. Revenue Calculation
       const orderValue = parseFloat(order.totalValue) || 0;
       totalRevenue += orderValue; 
+      if (isSameDay(createdDate, today)) todayRevenue += orderValue;
 
       // 3. Growth Metrics 
       if (isSameDay(createdDate, today)) todayOrders++;
@@ -1134,15 +1137,26 @@ export default function AnalyticsDashboard() {
     const peakTimeLabel = maxOrders > 0 ? `${peakH} ${peakAmpm}` : "N/A";
 
     // --- SESSIONS & CONVERSION LOGIC ---
+    let todaySessions = 0;
     sessionsData.forEach(session => {
         const sessionDate = new Date(session.date);
         if (isDateInRange(sessionDate)) {
            rangeSessionsCount++;
         }
+        if (isSameDay(sessionDate, today)) {
+           todaySessions++;
+        }
     });
 
+    // Conversion rate: only compare same-day data to be accurate
+    // (sessions only started tracking recently, so cross-period comparison is misleading)
     const conversionRate = rangeSessionsCount > 0 
       ? ((rangeOrdersCount / rangeSessionsCount) * 100).toFixed(1) 
+      : '0.0';
+
+    // Today-specific conversion — the most accurate metric since sessions started today
+    const todayConversionRate = todaySessions > 0
+      ? ((todayOrders / todaySessions) * 100).toFixed(1)
       : '0.0';
 
     return {
@@ -1150,6 +1164,10 @@ export default function AnalyticsDashboard() {
       rangeOrdersCount,
       rangeSessionsCount,
       conversionRate,
+      todaySessions,
+      todayOrders,
+      todayRevenue,
+      todayConversionRate,
       rangeRevenue, 
       rangeShippedCount,
       rangeDeliveredCount,
@@ -1229,13 +1247,14 @@ export default function AnalyticsDashboard() {
         </div>
       </header>
 
-      {/* Shopify-style Stats Bar */}
+      {/* Shopify-style Stats Bar — shows TODAY's data since session tracking started today */}
       <ShopifyStatsBar 
-        sessionsCount={analytics?.rangeSessionsCount}
-        revenue={analytics?.rangeRevenue}
-        ordersCount={analytics?.rangeOrdersCount}
-        conversionRate={analytics?.conversionRate}
+        sessionsCount={analytics?.todaySessions}
+        revenue={analytics?.todayRevenue}
+        ordersCount={analytics?.todayOrders}
+        conversionRate={analytics?.todayConversionRate}
         chartData={analytics?.chartData}
+        rangeLabel="Today"
       />
 
       {/* KPI CARDS (Updated Icons & UI) */}

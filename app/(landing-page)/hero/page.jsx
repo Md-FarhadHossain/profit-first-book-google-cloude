@@ -197,6 +197,17 @@ const HeroSection = () => {
             };
             trackViewContent([PRODUCT_ID], PRODUCT_NAME, PRODUCT_PRICE, CURRENCY, viewContentUserData);
 
+            // Track unique session in the database
+            try {
+               await fetch('/api/track-session', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ deviceId: deviceId })
+               });
+            } catch (err) {
+               console.error("Session Tracking Error", err);
+            }
+
         } catch (error) {
             console.error("Initialization Error", error);
         } finally {

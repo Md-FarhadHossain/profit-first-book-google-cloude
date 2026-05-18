@@ -84,9 +84,16 @@ export const sendServerEvent = async (eventName: string, customData: any, userDa
         const fbcConstructed = typeof localStorage !== 'undefined' ? (localStorage.getItem('_fbc_constructed') ?? undefined) : undefined;
         const fbc = userData.fbc || fbcFromCookie || fbcConstructed;
 
-        // Resolve fbp: cookie > localStorage backup (for Safari ITP)
+        // Resolve fbp: cookie > localStorage backup > generate new fallback
         const fbpFromCookie = getCookie('_fbp');
-        const fbpBackup = typeof localStorage !== 'undefined' ? (localStorage.getItem('_fbp_backup') ?? undefined) : undefined;
+        let fbpBackup = typeof localStorage !== 'undefined' ? (localStorage.getItem('_fbp_backup') ?? undefined) : undefined;
+        
+        // If neither exists, generate a standard fbp format and save as backup
+        if (!fbpFromCookie && !fbpBackup && typeof localStorage !== 'undefined') {
+            fbpBackup = `fb.1.${Date.now()}.${Math.floor(Math.random() * 10000000000)}`;
+            localStorage.setItem('_fbp_backup', fbpBackup);
+        }
+        
         const fbp = userData.fbp || fbpFromCookie || fbpBackup;
 
         // Build full userData with resolved fbc/fbp before hashing

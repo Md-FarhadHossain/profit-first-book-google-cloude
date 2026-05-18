@@ -14,6 +14,7 @@ import {
 import { format, subDays, isSameDay, startOfDay, isToday, isYesterday, isThisMonth, isThisYear, startOfMonth, endOfMonth, startOfYear, endOfYear } from 'date-fns';
 import { UAParser } from 'ua-parser-js'; 
 import getAllOrders from '@/lib/getAllorders';
+import getAllSessions from '@/lib/getAllSessions';
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -236,6 +237,117 @@ const StatCard = ({ title, value, trend, trendValue, icon: Icon, theme = 'blue',
           <p className={`font-bold text-white tracking-tight ${isHero ? 'text-3xl' : 'text-2xl'}`}>
             {value}
           </p>
+      </div>
+    </div>
+  );
+};
+
+// Shopify-style stats bar component — dark theme to match the dashboard
+const ShopifyStatsBar = ({ sessionsCount, revenue, ordersCount, conversionRate, chartData }) => {
+  // Only show conversion rate if sessions data is meaningful (more than 10 sessions collected)
+  const isSessionDataMature = (sessionsCount || 0) >= 10;
+  const displayConversion = isSessionDataMature ? `${conversionRate}%` : 'Collecting…';
+
+  const items = [
+    {
+      label: 'Sessions',
+      value: (sessionsCount || 0).toLocaleString(),
+      isCurrency: false,
+      badge: !isSessionDataMature ? 'Live tracking' : null,
+      badgeColor: 'text-sky-400 bg-sky-400/10 border-sky-500/20',
+      accentColor: '#38bdf8',
+      strokeColor: '#0ea5e9',
+    },
+    {
+      label: 'Gross Sales',
+      value: `৳${(revenue || 0).toLocaleString()}`,
+      isCurrency: false,
+      badge: null,
+      accentColor: '#34d399',
+      strokeColor: '#10b981',
+    },
+    {
+      label: 'Orders',
+      value: (ordersCount || 0).toLocaleString(),
+      isCurrency: false,
+      badge: null,
+      accentColor: '#a78bfa',
+      strokeColor: '#7c3aed',
+    },
+    {
+      label: 'Conversion Rate',
+      value: displayConversion,
+      isCurrency: false,
+      badge: !isSessionDataMature ? 'Need more data' : null,
+      badgeColor: 'text-amber-400 bg-amber-400/10 border-amber-500/20',
+      accentColor: '#fb923c',
+      strokeColor: '#ea580c',
+    },
+  ];
+
+  return (
+    <div className="bg-gray-800/50 backdrop-blur-xl border border-gray-700/60 rounded-2xl mb-8 shadow-2xl overflow-hidden">
+      {/* Header strip */}
+      <div className="flex items-center gap-2 px-6 py-3 border-b border-gray-700/50 bg-gray-900/30">
+        <Activity size={14} className="text-sky-400" />
+        <span className="text-xs font-semibold text-gray-400 uppercase tracking-widest">Conversion Overview</span>
+        <span className="ml-auto flex items-center gap-1.5 text-[10px] font-medium text-emerald-400">
+          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse inline-block" />
+          Live
+        </span>
+      </div>
+
+      {/* Stats row */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 divide-x divide-y lg:divide-y-0 divide-gray-700/50">
+        {items.map((item, index) => (
+          <div
+            key={index}
+            className="group p-5 flex flex-col gap-3 hover:bg-gray-700/20 transition-colors duration-200"
+          >
+            {/* Label */}
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] font-bold uppercase tracking-widest text-gray-500">
+                {item.label}
+              </span>
+              {item.badge && (
+                <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full border ${item.badgeColor}`}>
+                  {item.badge}
+                </span>
+              )}
+            </div>
+
+            {/* Value + sparkline row */}
+            <div className="flex items-end justify-between gap-2">
+              <span className="text-2xl font-bold text-white tracking-tight leading-none">
+                {item.value}
+              </span>
+
+              {/* Mini sparkline */}
+              <div className="w-20 h-9 shrink-0 opacity-80 group-hover:opacity-100 transition-opacity">
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={chartData || []}>
+                    <defs>
+                      <linearGradient id={`dark-sparkline-${index}`} x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor={item.accentColor} stopOpacity={0.4} />
+                        <stop offset="95%" stopColor={item.accentColor} stopOpacity={0} />
+                      </linearGradient>
+                    </defs>
+                    <Area
+                      type="monotone"
+                      dataKey="orders"
+                      stroke={item.strokeColor}
+                      strokeWidth={2}
+                      fillOpacity={1}
+                      fill={`url(#dark-sparkline-${index})`}
+                      isAnimationActive={false}
+                      dot={false}
+                    />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+          </div>
+        ))}
       </div>
     </div>
   );
@@ -728,6 +840,7 @@ const BangladeshMapChart = ({ districtData }) => {
 
 export default function AnalyticsDashboard() {
   const [orders, setOrders] = useState([]);
+  const [sessionsData, setSessionsData] = useState([]);
   const [loading, setLoading] = useState(true);
   
   // Date filtering state - replacing the simple timeRange with date range
@@ -738,10 +851,14 @@ export default function AnalyticsDashboard() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const data = await getAllOrders();
-        setOrders(data);
+        const [ordersData, sessionsFetch] = await Promise.all([
+           getAllOrders(),
+           getAllSessions()
+        ]);
+        setOrders(ordersData);
+        setSessionsData(sessionsFetch);
       } catch (error) {
-        console.error("Error fetching orders:", error);
+        console.error("Error fetching analytics data:", error);
       } finally {
         setLoading(false);
       }
@@ -802,6 +919,7 @@ export default function AnalyticsDashboard() {
     
     // Range Counters
     let rangeOrdersCount = 0;
+    let rangeSessionsCount = 0;
     let rangeShippedCount = 0;
     let rangeDeliveredCount = 0;
     
@@ -1015,9 +1133,23 @@ export default function AnalyticsDashboard() {
     const peakH = peakHourIndex % 12 || 12;
     const peakTimeLabel = maxOrders > 0 ? `${peakH} ${peakAmpm}` : "N/A";
 
+    // --- SESSIONS & CONVERSION LOGIC ---
+    sessionsData.forEach(session => {
+        const sessionDate = new Date(session.date);
+        if (isDateInRange(sessionDate)) {
+           rangeSessionsCount++;
+        }
+    });
+
+    const conversionRate = rangeSessionsCount > 0 
+      ? ((rangeOrdersCount / rangeSessionsCount) * 100).toFixed(1) 
+      : '0.0';
+
     return {
       totalOrders: validOrders.length,
       rangeOrdersCount,
+      rangeSessionsCount,
+      conversionRate,
       rangeRevenue, 
       rangeShippedCount,
       rangeDeliveredCount,
@@ -1096,6 +1228,15 @@ export default function AnalyticsDashboard() {
           />
         </div>
       </header>
+
+      {/* Shopify-style Stats Bar */}
+      <ShopifyStatsBar 
+        sessionsCount={analytics?.rangeSessionsCount}
+        revenue={analytics?.rangeRevenue}
+        ordersCount={analytics?.rangeOrdersCount}
+        conversionRate={analytics?.conversionRate}
+        chartData={analytics?.chartData}
+      />
 
       {/* KPI CARDS (Updated Icons & UI) */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-5 mb-8">

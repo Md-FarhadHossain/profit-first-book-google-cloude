@@ -1247,14 +1247,20 @@ export default function AnalyticsDashboard() {
         </div>
       </header>
 
-      {/* Shopify-style Stats Bar — shows TODAY's data since session tracking started today */}
+      {/* Shopify-style Stats Bar */}
       <ShopifyStatsBar 
-        sessionsCount={analytics?.todaySessions}
-        revenue={analytics?.todayRevenue}
-        ordersCount={analytics?.todayOrders}
-        conversionRate={analytics?.todayConversionRate}
+        sessionsCount={analytics?.rangeSessionsCount}
+        revenue={analytics?.rangeRevenue}
+        ordersCount={analytics?.rangeOrdersCount}
+        conversionRate={analytics?.conversionRate}
         chartData={analytics?.chartData}
-        rangeLabel="Today"
+        rangeLabel={
+          dateRange?.from && dateRange?.to && dateRange.from.getTime() === dateRange.to.getTime()
+            ? format(dateRange.from, "MMM dd, yyyy")
+            : selectedPreset 
+              ? DATE_PRESETS.find(p => p.value === selectedPreset)?.label || "Selected period"
+              : "Selected period"
+        }
       />
 
       {/* KPI CARDS (Updated Icons & UI) */}

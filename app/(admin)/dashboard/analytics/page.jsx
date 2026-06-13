@@ -9,7 +9,7 @@ import {
   ArrowUpRight, ArrowDownRight, Calendar, TrendingUp, 
   Package, DollarSign, Activity, MapPin, ChevronDown, 
   Smartphone, Cpu, Share2, Globe, ShieldCheck, CheckCircle, Send,
-  Megaphone, Wallet, ShoppingBag, X, Clock
+  Megaphone, Wallet, ShoppingBag, X, Clock, Filter
 } from 'lucide-react';
 import { format, subDays, isSameDay, startOfDay, isToday, isYesterday, isThisMonth, isThisYear, startOfMonth, endOfMonth, startOfYear, endOfYear } from 'date-fns';
 import { UAParser } from 'ua-parser-js'; 
@@ -1136,16 +1136,71 @@ export default function AnalyticsDashboard() {
     const peakH = peakHourIndex % 12 || 12;
     const peakTimeLabel = maxOrders > 0 ? `${peakH} ${peakAmpm}` : "N/A";
 
-    // --- SESSIONS & CONVERSION LOGIC ---
+    // --- SESSIONS, FUNNEL & CONVERSION LOGIC ---
     let todaySessions = 0;
+    let rangeAddedToCart = 0;
+    let rangeInitiatedCheckout = 0;
+    let todayAddedToCart = 0;
+    let todayInitiatedCheckout = 0;
+
+    // Rolling 24 Hours Funnel Tracker
+    const rolling24hAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+    let funnelSessions = 0;
+    let funnelAddedToCart = 0;
+    let funnelInitiatedCheckout = 0;
+    let funnelOrders = 0;
+
+    // Fixed Timeframe Trackers
+    let todayFixedSessions = 0, todayFixedOrders = 0;
+    let yesterdayFixedSessions = 0, yesterdayFixedOrders = 0;
+    let last7FixedSessions = 0, last7FixedOrders = 0;
+    let last30FixedSessions = 0, last30FixedOrders = 0;
+
+    const yesterday = subDays(today, 1);
+    const last7 = subDays(today, 6);
+    const last30 = subDays(today, 29);
+    // End date for fixed calculations (ignore time)
+    const fixedEndDate = new Date(today);
+    fixedEndDate.setHours(23, 59, 59, 999);
+
     sessionsData.forEach(session => {
         const sessionDate = new Date(session.date);
+        
+        // Range metrics
         if (isDateInRange(sessionDate)) {
            rangeSessionsCount++;
+           if (session.addedToCart) rangeAddedToCart++;
+           if (session.initiatedCheckout) rangeInitiatedCheckout++;
         }
+        
+        // Rolling 24h Funnel
+        if (sessionDate >= rolling24hAgo) {
+            funnelSessions++;
+            if (session.addedToCart) funnelAddedToCart++;
+            if (session.initiatedCheckout) funnelInitiatedCheckout++;
+        }
+
+        // Fixed metrics
         if (isSameDay(sessionDate, today)) {
            todaySessions++;
+           todayFixedSessions++;
+           if (session.addedToCart) todayAddedToCart++;
+           if (session.initiatedCheckout) todayInitiatedCheckout++;
         }
+        if (isSameDay(sessionDate, yesterday)) yesterdayFixedSessions++;
+        if (sessionDate >= last7 && sessionDate <= fixedEndDate) last7FixedSessions++;
+        if (sessionDate >= last30 && sessionDate <= fixedEndDate) last30FixedSessions++;
+    });
+
+    validOrders.forEach(order => {
+        const createdDate = new Date(order.createdAt);
+        
+        if (createdDate >= rolling24hAgo) funnelOrders++;
+
+        if (isSameDay(createdDate, today)) todayFixedOrders++;
+        if (isSameDay(createdDate, yesterday)) yesterdayFixedOrders++;
+        if (createdDate >= last7 && createdDate <= fixedEndDate) last7FixedOrders++;
+        if (createdDate >= last30 && createdDate <= fixedEndDate) last30FixedOrders++;
     });
 
     // Conversion rate: only compare same-day data to be accurate
@@ -1159,10 +1214,33 @@ export default function AnalyticsDashboard() {
       ? ((todayOrders / todaySessions) * 100).toFixed(1)
       : '0.0';
 
+    const funnelConversionRate = funnelSessions > 0
+      ? ((funnelOrders / funnelSessions) * 100).toFixed(1)
+      : '0.0';
+
+    const calcConv = (o, s) => s > 0 ? ((o/s)*100).toFixed(1) : '0.0';
+
+    const fixedConversions = {
+      today: calcConv(todayFixedOrders, todayFixedSessions),
+      yesterday: calcConv(yesterdayFixedOrders, yesterdayFixedSessions),
+      last7: calcConv(last7FixedOrders, last7FixedSessions),
+      last30: calcConv(last30FixedOrders, last30FixedSessions)
+    };
+
     return {
       totalOrders: validOrders.length,
       rangeOrdersCount,
       rangeSessionsCount,
+      rangeAddedToCart,
+      rangeInitiatedCheckout,
+      todayAddedToCart,
+      todayInitiatedCheckout,
+      funnelSessions,
+      funnelAddedToCart,
+      funnelInitiatedCheckout,
+      funnelOrders,
+      funnelConversionRate,
+      fixedConversions,
       conversionRate,
       todaySessions,
       todayOrders,
@@ -1298,6 +1376,121 @@ export default function AnalyticsDashboard() {
           trend={analytics?.growthDirection} 
           trendValue={analytics?.growth}
         />
+      </div>
+
+      {/* FUNNEL AND FIXED CONVERSION STATS */}
+      <div className="grid grid-cols-1 lg:grid-cols-[1fr_300px] gap-5 mb-8">
+
+        {/* LEFT: Compact Conversion Funnel */}
+        <Card className="relative overflow-hidden py-5 px-5" style={{ background: 'linear-gradient(135deg, rgba(15,18,30,0.95) 0%, rgba(10,14,25,0.98) 100%)' }}>
+          <div className="absolute -top-16 -left-16 w-48 h-48 bg-blue-600/6 rounded-full blur-3xl pointer-events-none" />
+
+          {/* Header */}
+          <div className="flex justify-between items-center mb-4">
+            <div className="flex items-center gap-2">
+              <Filter size={14} className="text-purple-400" />
+              <h3 className="text-sm font-bold text-white tracking-tight">Conversion Funnel</h3>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <span className="text-[10px] text-gray-500 uppercase tracking-wider">Last 24h</span>
+              <span className="text-xs font-black text-white">{analytics?.funnelConversionRate}%</span>
+              <div className="w-12 h-1 rounded-full overflow-hidden bg-gray-800 ml-1">
+                <div className="h-full rounded-full bg-gradient-to-r from-blue-500 to-emerald-500"
+                  style={{ width: `${Math.min(parseFloat(analytics?.funnelConversionRate || 0) * 5, 100)}%` }} />
+              </div>
+            </div>
+          </div>
+
+          {/* Funnel Steps — single compact table-like layout */}
+          <div className="space-y-1.5">
+            {(() => {
+              const steps = [
+                { label: 'Website Traffic', value: analytics?.funnelSessions || 0, color: '#3B82F6', icon: Globe },
+                { label: 'Add to Cart',     value: analytics?.funnelAddedToCart || 0,   color: '#F59E0B', icon: ShoppingBag },
+                { label: 'Initiate Checkout', value: analytics?.funnelInitiatedCheckout || 0, color: '#F43F5E', icon: Activity },
+                { label: 'Purchases',       value: analytics?.funnelOrders || 0,   color: '#10B981', icon: CheckCircle },
+              ];
+              const maxVal = Math.max(steps[0].value, 1);
+              return steps.map((step, i) => {
+                const pct = Math.max((step.value / maxVal) * 100, step.value > 0 ? 2 : 0);
+                const convPct = i > 0 && steps[i-1].value > 0 ? ((step.value / steps[i-1].value) * 100).toFixed(0) : null;
+                const StepIcon = step.icon;
+                return (
+                  <div key={step.label} className="group flex items-center gap-3 rounded-lg px-3 py-2.5 transition-all duration-200 cursor-default"
+                    style={{ background: `${step.color}08`, border: `1px solid ${step.color}18` }}
+                    onMouseEnter={e => { e.currentTarget.style.borderColor = step.color + '40'; e.currentTarget.style.background = step.color + '12'; }}
+                    onMouseLeave={e => { e.currentTarget.style.borderColor = step.color + '18'; e.currentTarget.style.background = step.color + '08'; }}>
+
+                    {/* Step number */}
+                    <span className="text-[10px] font-bold w-4 text-center flex-shrink-0" style={{ color: step.color + '80' }}>{i + 1}</span>
+
+                    {/* Icon */}
+                    <StepIcon size={13} style={{ color: step.color }} className="flex-shrink-0" />
+
+                    {/* Label */}
+                    <span className="text-xs font-medium text-gray-300 flex-shrink-0 w-32">{step.label}</span>
+
+                    {/* Bar */}
+                    <div className="flex-1 h-1.5 rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.05)' }}>
+                      <div className="h-full rounded-full transition-all duration-500"
+                        style={{ width: `${pct}%`, background: `linear-gradient(to right, ${step.color}70, ${step.color})` }} />
+                    </div>
+
+                    {/* Value + drop-off */}
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                      {convPct !== null && (
+                        <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded"
+                          style={{ color: parseFloat(convPct) > 50 ? '#10B981' : '#F43F5E', background: parseFloat(convPct) > 50 ? 'rgba(16,185,129,0.1)' : 'rgba(244,63,94,0.1)' }}>
+                          {convPct}%
+                        </span>
+                      )}
+                      <span className="text-sm font-black w-14 text-right" style={{ color: step.color }}>{step.value.toLocaleString()}</span>
+                    </div>
+                  </div>
+                );
+              });
+            })()}
+          </div>
+        </Card>
+
+        {/* RIGHT: 2x2 Conversion Rate Grid */}
+        <Card className="relative overflow-hidden" style={{ background: 'linear-gradient(135deg, rgba(15,18,30,0.95) 0%, rgba(10,14,25,0.98) 100%)' }}>
+          <div className="absolute -bottom-16 -right-16 w-48 h-48 bg-emerald-600/6 rounded-full blur-3xl pointer-events-none" />
+
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <TrendingUp size={14} className="text-emerald-400" />
+              <h3 className="text-sm font-bold text-white tracking-tight">Conversion Rates</h3>
+            </div>
+            <span className="text-[10px] text-gray-500 uppercase tracking-wider">Fixed windows</span>
+          </div>
+
+          <div className="grid grid-cols-2 gap-2">
+            {[
+              { label: 'Today',     key: 'today',     color: '#10B981', border: 'rgba(16,185,129,0.25)',  bg: 'rgba(16,185,129,0.08)' },
+              { label: 'Yesterday', key: 'yesterday', color: '#F59E0B', border: 'rgba(245,158,11,0.25)', bg: 'rgba(245,158,11,0.08)' },
+              { label: '7 Days',    key: 'last7',     color: '#3B82F6', border: 'rgba(59,130,246,0.25)',  bg: 'rgba(59,130,246,0.08)' },
+              { label: '30 Days',   key: 'last30',    color: '#A855F7', border: 'rgba(168,85,247,0.25)', bg: 'rgba(168,85,247,0.08)' },
+            ].map(item => {
+              const val = parseFloat(analytics?.fixedConversions?.[item.key] || '0');
+              return (
+                <div key={item.key} className="rounded-xl p-3 flex flex-col gap-1 transition-all duration-200 cursor-default"
+                  style={{ background: item.bg, border: `1px solid ${item.border}` }}
+                  onMouseEnter={e => { e.currentTarget.style.borderColor = item.color + '50'; e.currentTarget.style.boxShadow = `0 0 16px ${item.color}20`; }}
+                  onMouseLeave={e => { e.currentTarget.style.borderColor = item.border; e.currentTarget.style.boxShadow = 'none'; }}>
+                  <span className="text-[10px] font-bold uppercase tracking-wider" style={{ color: item.color + 'aa' }}>{item.label}</span>
+                  <span className="text-xl font-black leading-none" style={{ color: item.color }}>
+                    {val.toFixed(1)}<span className="text-xs font-semibold">%</span>
+                  </span>
+                  <div className="h-0.5 rounded-full overflow-hidden mt-0.5" style={{ background: 'rgba(255,255,255,0.06)' }}>
+                    <div className="h-full rounded-full transition-all duration-700"
+                      style={{ width: `${Math.min(val * 3, 100)}%`, background: item.color }} />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </Card>
       </div>
 
       {/* MAIN CHART */}

@@ -331,6 +331,16 @@ const HeroSection = () => {
               tags: ["f-commerce", "book"],
             }, getAdvancedMatchingData());
             hasAddedToCart.current = true;
+            
+            // Track in database
+            const currentDeviceId = behaviorData.device_id || localStorage.getItem("device_id");
+            if (currentDeviceId) {
+              fetch('/api/track-session', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ deviceId: currentDeviceId, action: 'add_to_cart' })
+              }).catch(e => console.error("Session Update Error", e));
+            }
           }
         });
       },
@@ -347,6 +357,16 @@ const HeroSection = () => {
          tags: ["f-commerce", "book"],
          subtotal: PRODUCT_PRICE
       }, getAdvancedMatchingData());
+      
+      // Track in database
+      const currentDeviceId = behaviorData.device_id || localStorage.getItem("device_id");
+      if (currentDeviceId) {
+        fetch('/api/track-session', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ deviceId: currentDeviceId, action: 'initiate_checkout' })
+        }).catch(e => console.error("Session Update Error", e));
+      }
       
       setCheckoutStarted(true);
     }

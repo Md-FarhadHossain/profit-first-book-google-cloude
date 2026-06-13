@@ -435,6 +435,9 @@ const HeroSection = () => {
       try {
         localStorage.setItem("billing_name", name);
         localStorage.setItem("billing_phone", number);
+        if (result.gender) {
+          localStorage.setItem("billing_gender", result.gender);
+        }
       } catch (e) {}
 
       // --- SEND CONFIRMATION SMS ---

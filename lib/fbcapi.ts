@@ -44,6 +44,7 @@ const hashUserData = async (userData: any): Promise<any> => {
     if (userData.fn)          hashed.fn          = await sha256(userData.fn);
     if (userData.ln)          hashed.ln          = await sha256(userData.ln);
     if (userData.em)          hashed.em          = await sha256(userData.em);
+    if (userData.ge)          hashed.ge          = await sha256(userData.ge);
     if (userData.ct)          hashed.ct          = await sha256(userData.ct);
     if (userData.st)          hashed.st          = await sha256(userData.st);
     // Always send country — default to 'bd' (Bangladesh) if not provided

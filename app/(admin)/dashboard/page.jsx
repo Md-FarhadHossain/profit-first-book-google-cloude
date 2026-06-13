@@ -1183,7 +1183,7 @@ const OrderModal = ({
                     </div>
                   </div>
                 ) : (
-                  <div className="flex flex-col sm:flex-row gap-6">
+                  <div className="flex flex-col sm:flex-row gap-4">
                     <div className="flex-1 bg-gray-900/40 p-3 rounded-xl border border-gray-700/30">
                       <p className="text-[10px] text-gray-500 font-bold uppercase tracking-widest mb-1.5 flex items-center gap-1.5"><User size={10} /> Full Name</p>
                       <p className="font-semibold text-white text-base truncate">{order.customer?.name || order.name || 'Anonymous'}</p>
@@ -1195,6 +1195,12 @@ const OrderModal = ({
                         {order.smsStatus === "Sent" && (
                           <span title="SMS Delivered" className="flex items-center gap-1 text-[10px] uppercase font-bold text-green-400 bg-green-400/10 px-1.5 py-0.5 rounded-full border border-green-400/20"><CheckCircle size={10} /> Verified</span>
                         )}
+                      </p>
+                    </div>
+                    <div className="bg-gray-900/40 p-3 rounded-xl border border-gray-700/30 shrink-0 min-w-[100px]">
+                      <p className="text-[10px] text-gray-500 font-bold uppercase tracking-widest mb-1.5 flex items-center gap-1.5">Gender</p>
+                      <p className="font-semibold text-white text-base">
+                        {order.gender === 'm' ? 'Male' : order.gender === 'f' ? 'Female' : 'Unknown'}
                       </p>
                     </div>
                   </div>

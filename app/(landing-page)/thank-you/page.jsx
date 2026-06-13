@@ -109,6 +109,11 @@ function ThankYouContent() {
            if (nameParts.length > 1) userData.ln = nameParts.slice(1).join(" ").toLowerCase();
         }
 
+        const savedGender = localStorage.getItem("billing_gender");
+        if (savedGender === "m" || savedGender === "f") {
+          userData.ge = savedGender;
+        }
+
         // Country — always Bangladesh (city/state resolved from IP on server)
         userData.country = 'bd';
 

@@ -9,7 +9,7 @@ import {
   ArrowUpRight, ArrowDownRight, Calendar, TrendingUp, 
   Package, DollarSign, Activity, MapPin, ChevronDown, 
   Smartphone, Cpu, Share2, Globe, ShieldCheck, CheckCircle, Send,
-  Megaphone, Wallet, ShoppingBag, X, Clock, Filter
+  Megaphone, Wallet, ShoppingBag, X, Clock, Filter, User
 } from 'lucide-react';
 import { format, subDays, isSameDay, startOfDay, isToday, isYesterday, isThisMonth, isThisYear, startOfMonth, endOfMonth, startOfYear, endOfYear } from 'date-fns';
 import { UAParser } from 'ua-parser-js'; 
@@ -929,6 +929,11 @@ export default function AnalyticsDashboard() {
     let paidCount = 0;
     let organicCount = 0;
 
+    // Gender Counters
+    let maleCount = 0;
+    let femaleCount = 0;
+    let unknownGenderCount = 0;
+
     const statusDist = { Processing: 0, Shipped: 0, Delivered: 0, Cancelled: 0, Returned: 0 };
     const locationDist = { InsideDhaka: 0, OutsideDhaka: 0, Other: 0 };
     
@@ -1014,6 +1019,11 @@ export default function AnalyticsDashboard() {
          } else {
             organicCount++;
          }
+
+         // --- GENDER BREAKDOWN ---
+         if (order.gender === 'm') maleCount++;
+         else if (order.gender === 'f') femaleCount++;
+         else unknownGenderCount++;
 
          // --- HOURLY BREAKDOWN ---
          const hour = createdDate.getHours();
@@ -1115,6 +1125,9 @@ export default function AnalyticsDashboard() {
 
     const totalMarketing = paidCount + organicCount;
     const paidPct = totalMarketing > 0 ? ((paidCount / totalMarketing) * 100).toFixed(0) : 0;
+
+    const totalGender = maleCount + femaleCount;
+    const malePct = totalGender > 0 ? ((maleCount / totalGender) * 100).toFixed(0) : 0;
 
     // --- HOURLY DATA ---
     const hourlyData = hourlyCounts.map((count, hour) => {
@@ -1266,8 +1279,14 @@ export default function AnalyticsDashboard() {
         { name: 'Paid Ads', value: paidCount, color: '#F43F5E' }, 
         { name: 'Organic', value: organicCount, color: '#10B981' }
       ],
+      genderData: [
+        { name: 'Male', value: maleCount, color: '#3B82F6' },
+        { name: 'Female', value: femaleCount, color: '#EC4899' },
+        { name: 'Unknown', value: unknownGenderCount, color: '#9CA3AF' }
+      ].filter(i => i.value > 0),
       insidePct,
       paidPct,
+      malePct,
       osData,
       modelData,
       androidVersions,
@@ -1739,6 +1758,41 @@ export default function AnalyticsDashboard() {
                 </div>
                 <div className="flex gap-6">
                     {analytics?.marketingData.map((item) => (
+                        <div key={item.name} className="flex items-center gap-2">
+                            <div className="w-2.5 h-2.5 rounded-full" style={{backgroundColor: item.color}}></div>
+                            <div className="flex flex-col">
+                                <span className="text-xs text-gray-400 font-medium">{item.name}</span>
+                                <span className="text-lg font-bold text-white">{item.value}</span>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            </div>
+        </Card>
+
+        {/* GENDER DISTRIBUTION */}
+        <Card className="min-h-[300px]">
+            <div className="flex justify-between items-center mb-6">
+                <h3 className="text-lg font-bold text-white">Gender Distribution</h3>
+                <div className="p-2 bg-gray-700/30 rounded-lg"><User size={16} className="text-gray-400" /></div>
+            </div>
+            <div className="flex flex-col items-center justify-center h-full gap-6">
+                <div className="w-48 h-48 relative">
+                    <ResponsiveContainer width="100%" height="100%">
+                        <PieChart>
+                            <Pie data={analytics?.genderData} innerRadius={60} outerRadius={80} paddingAngle={6} dataKey="value" stroke="none">
+                                {analytics?.genderData?.map((e, i) => <Cell key={i} fill={e.color} />)}
+                            </Pie>
+                            <Tooltip content={<CustomTooltip />} />
+                        </PieChart>
+                    </ResponsiveContainer>
+                    <div className="absolute inset-0 flex items-center justify-center flex-col pointer-events-none">
+                        <span className="text-3xl font-bold text-white tracking-tighter">{analytics?.malePct}%</span>
+                        <span className="text-[11px] font-bold text-gray-500 uppercase tracking-widest mt-1">Male</span>
+                    </div>
+                </div>
+                <div className="flex gap-4">
+                    {analytics?.genderData?.map((item) => (
                         <div key={item.name} className="flex items-center gap-2">
                             <div className="w-2.5 h-2.5 rounded-full" style={{backgroundColor: item.color}}></div>
                             <div className="flex flex-col">

@@ -32,6 +32,42 @@ export async function POST(request) {
 
     const orderId = `ORD-${Math.floor(10000 + Math.random() * 90000)}`;
     
+    // ======== AI GENDER DETECTION ========
+    let predictedGender = 'unknown';
+    if (data.name && process.env.GROQ_API_KEY) {
+      try {
+        const groqResponse = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+          method: "POST",
+          headers: {
+            "Authorization": `Bearer ${process.env.GROQ_API_KEY}`,
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+            model: "openai/gpt-oss-120b",
+            messages: [{
+              role: "user",
+              content: `Guess the gender of a person named '${data.name}' in Bangladesh. Reply with ONLY 'm' for male, 'f' for female, or 'unknown'.`
+            }],
+            temperature: 0.1,
+            max_completion_tokens: 10
+          })
+        });
+        
+        if (groqResponse.ok) {
+          const groqData = await groqResponse.json();
+          const reply = groqData.choices[0]?.message?.content?.trim().toLowerCase();
+          if (reply === 'm' || reply === 'f') {
+            predictedGender = reply;
+          }
+        } else {
+          console.error("Groq API error response:", await groqResponse.text());
+        }
+      } catch (err) {
+        console.error("Groq API fetch error:", err);
+      }
+    }
+    // =====================================
+    
     const inserted = await db.insert(orders).values({
       orderId,
       name: data.name,
@@ -47,8 +83,9 @@ export async function POST(request) {
       postId: data.postId,
       postType: data.postType,
       clientInfo: data.clientInfo,
-      marketing: data.marketing
-    }).returning({ id: orders.id, orderId: orders.orderId });
+      marketing: data.marketing,
+      gender: predictedGender
+    }).returning({ id: orders.id, orderId: orders.orderId, gender: orders.gender });
     
     try {
       if (inserted[0]?.orderId) {
@@ -80,7 +117,8 @@ export async function POST(request) {
     return NextResponse.json({ 
       success: true, 
       orderId: inserted[0].orderId, 
-      insertedId: inserted[0].id 
+      insertedId: inserted[0].id,
+      gender: inserted[0].gender
     });
   } catch (error) {
     console.error("Order Creation Error:", error);
@@ -112,6 +150,7 @@ export async function GET(request) {
       callStatus: o.phoneCallStatus || "Pending",
       smsStatus: o.smsStatus,
       note: o.note,
+      gender: o.gender,
       trackingCode: o.trackingCode || null,
       consignmentId: o.consignmentId || null,
       courierStatus: o.courierStatus || "pending",

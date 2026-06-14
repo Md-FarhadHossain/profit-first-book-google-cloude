@@ -52,9 +52,21 @@ export async function POST(request) {
     if (notification_type === 'tracking_update') {
       console.log(`Steadfast Webhook: tracking_update for consignment ${consignment_id} — "${tracking_message}"`);
       if (tracking_message && consignment_id) {
-        await db.update(orders)
-          .set({ courierNote: tracking_message, updatedAt: new Date().toISOString() })
-          .where(eq(orders.consignmentId, consignment_id.toString()));
+        const [existingOrder] = await db.select().from(orders).where(eq(orders.consignmentId, consignment_id.toString()));
+        if (existingOrder) {
+          let existingNotes = [];
+          if (existingOrder.courierNote) {
+            try { existingNotes = JSON.parse(existingOrder.courierNote); } 
+            catch (e) { existingNotes = [{ message: existingOrder.courierNote, date: existingOrder.updatedAt || new Date().toISOString() }]; }
+          }
+          // Only add if it's not a duplicate of the last message
+          if (existingNotes.length === 0 || existingNotes[existingNotes.length - 1].message !== tracking_message) {
+            existingNotes.push({ message: tracking_message, date: new Date().toISOString() });
+            await db.update(orders)
+              .set({ courierNote: JSON.stringify(existingNotes), updatedAt: new Date().toISOString() })
+              .where(eq(orders.consignmentId, consignment_id.toString()));
+          }
+        }
       }
       return NextResponse.json({ status: 'success', message: 'Webhook received successfully.' }, { status: 200 });
     }
@@ -119,7 +131,15 @@ export async function POST(request) {
         };
 
         if (tracking_message) {
-          updateFields.courierNote = tracking_message;
+          let existingNotes = [];
+          if (existingOrder.courierNote) {
+            try { existingNotes = JSON.parse(existingOrder.courierNote); } 
+            catch (e) { existingNotes = [{ message: existingOrder.courierNote, date: existingOrder.updatedAt || new Date().toISOString() }]; }
+          }
+          if (existingNotes.length === 0 || existingNotes[existingNotes.length - 1].message !== tracking_message) {
+            existingNotes.push({ message: tracking_message, date: eventTimeIso });
+            updateFields.courierNote = JSON.stringify(existingNotes);
+          }
         }
 
         if (dbStatus === 'Shipped' && !existingOrder.shippedAt) updateFields.shippedAt = eventTimeIso;

@@ -1354,19 +1354,29 @@ const OrderModal = ({
                       <p className="text-sm font-semibold text-gray-200">{new Date(order.returnedAt).toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' })}</p>
                     </div>
                   )}
-                  {order.courierNote && (
-                    <div className="relative pl-6 mt-4">
-                      <div className="absolute -left-[9px] top-1 w-4 h-4 rounded-full bg-gray-900 border-2 border-blue-400 flex items-center justify-center shadow-[0_0_8px_rgba(96,165,250,0.4)]">
-                        <div className="w-1.5 h-1.5 rounded-full bg-blue-400"></div>
+                  {(() => {
+                    if (!order.courierNote) return null;
+                    let notes = [];
+                    try {
+                      notes = JSON.parse(order.courierNote);
+                      if (!Array.isArray(notes)) notes = [{ message: order.courierNote, date: new Date().toISOString() }];
+                    } catch (e) {
+                      notes = [{ message: order.courierNote, date: new Date().toISOString() }];
+                    }
+                    return notes.map((note, index) => (
+                      <div key={`courier-note-${index}`} className="relative pl-6 mt-4">
+                        <div className="absolute -left-[9px] top-1 w-4 h-4 rounded-full bg-gray-900 border-2 border-blue-400 flex items-center justify-center shadow-[0_0_8px_rgba(96,165,250,0.4)]">
+                          <div className="w-1.5 h-1.5 rounded-full bg-blue-400"></div>
+                        </div>
+                        <p className="text-[10px] text-blue-400 font-bold uppercase tracking-widest mb-1.5 flex flex-wrap items-center gap-1.5">
+                          <StickyNote size={10} /> Courier Note {note.date && <span className="text-gray-500 font-medium normal-case ml-1">({new Date(note.date).toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' })})</span>}
+                        </p>
+                        <div className="bg-gray-900/60 p-3 rounded-lg border border-gray-700/50 shadow-inner">
+                          <p className="text-sm font-medium text-gray-200 italic">"{note.message}"</p>
+                        </div>
                       </div>
-                      <p className="text-[10px] text-blue-400 font-bold uppercase tracking-widest mb-1.5 flex items-center gap-1.5">
-                        <StickyNote size={10} /> Courier Note
-                      </p>
-                      <div className="bg-gray-900/60 p-3 rounded-lg border border-gray-700/50 shadow-inner">
-                        <p className="text-sm font-medium text-gray-200 italic">"{order.courierNote}"</p>
-                      </div>
-                    </div>
-                  )}
+                    ));
+                  })()}
                 </div>
               </div>
             </div>

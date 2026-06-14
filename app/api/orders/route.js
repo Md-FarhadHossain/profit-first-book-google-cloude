@@ -157,7 +157,8 @@ export async function GET(request) {
       date: (o.date && !o.date.includes('Z') && !o.date.includes('+')) ? o.date.replace(' ', 'T') + 'Z' : o.date,
       shippedAt: o.shippedAt || null,
       deliveredAt: o.deliveredAt || null,
-      returnedAt: o.returnedAt || null
+      returnedAt: o.returnedAt || null,
+      courierNote: o.courierNote || null
     }));
     
     return NextResponse.json(mappedOrders);

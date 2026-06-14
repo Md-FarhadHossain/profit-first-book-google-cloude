@@ -51,6 +51,11 @@ export async function POST(request) {
     // tracking_update payloads have no "status" field — acknowledge and exit early
     if (notification_type === 'tracking_update') {
       console.log(`Steadfast Webhook: tracking_update for consignment ${consignment_id} — "${tracking_message}"`);
+      if (tracking_message && consignment_id) {
+        await db.update(orders)
+          .set({ courierNote: tracking_message, updatedAt: new Date().toISOString() })
+          .where(eq(orders.consignmentId, consignment_id.toString()));
+      }
       return NextResponse.json({ status: 'success', message: 'Webhook received successfully.' }, { status: 200 });
     }
 
@@ -107,12 +112,15 @@ export async function POST(request) {
           }
         }
 
-        // Prepare fields to update
         const updateFields = {
           status: dbStatus,
           courierStatus: steadfastStatus,
           updatedAt: eventTimeIso
         };
+
+        if (tracking_message) {
+          updateFields.courierNote = tracking_message;
+        }
 
         if (dbStatus === 'Shipped' && !existingOrder.shippedAt) updateFields.shippedAt = eventTimeIso;
         if (dbStatus === 'Delivered' && !existingOrder.deliveredAt) updateFields.deliveredAt = eventTimeIso;

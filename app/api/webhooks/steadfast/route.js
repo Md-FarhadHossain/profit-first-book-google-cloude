@@ -46,7 +46,11 @@ export async function POST(request) {
 
     // 2. Parse the incoming webhook payload sent from Steadfast
     const payload = await request.json();
-    const { notification_type, consignment_id, status, delivery_status, updated_at, tracking_message } = payload;
+    console.log("STEADFAST RAW WEBHOOK PAYLOAD:", JSON.stringify(payload)); // Deep Logging for debugging undocumented fields
+
+    const { notification_type, consignment_id, status, delivery_status, updated_at } = payload;
+    // Steadfast might use different keys for the note. Let's capture the most common ones:
+    const tracking_message = payload.tracking_message || payload.note || payload.remark || payload.rider_note;
 
     // tracking_update payloads have no "status" field — acknowledge and exit early
     if (notification_type === 'tracking_update') {

@@ -43,10 +43,10 @@ export async function POST(request) {
             "Content-Type": "application/json"
           },
           body: JSON.stringify({
-            model: "openai/gpt-oss-120b",
+            model: "llama-3.3-70b-versatile",
             messages: [{
               role: "user",
-              content: `Guess the gender of a person named '${data.name}' in Bangladesh. Reply with ONLY 'm' for male, 'f' for female, or 'unknown'.`
+              content: `What is the typical gender for the Bangladeshi name '${data.name}'? Reply with ONLY 'm' for male, 'f' for female, or 'unknown'. Do not include any other text.`
             }],
             temperature: 0.1,
             max_completion_tokens: 10

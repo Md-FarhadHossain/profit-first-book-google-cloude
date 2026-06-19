@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { getStock } from '../../../actions/stock';
+import { getStock, getStockHistory, addStockHistory, deleteStockHistory } from '../../../actions/stock';
 import { addExpense, getExpenses, deleteExpense } from '../../../actions/expenses';
 import { addFacebookCost, getFacebookCosts, deleteFacebookCost } from '../../../actions/facebook';
 import { getFinancialStats } from '../../../actions/finance';
@@ -25,6 +25,10 @@ const EXPENSE_CATEGORIES = [
 
 export default function StockManagementPage() {
   const [stock, setStockLevel] = useState(0);
+  const [stockHistoryData, setStockHistoryData] = useState([]);
+  const [isStockModalOpen, setIsStockModalOpen] = useState(false);
+  const [newStockAmount, setNewStockAmount] = useState('');
+  const [isSavingStock, setIsSavingStock] = useState(false);
   const [expenses, setExpenses] = useState([]);
   const [facebookCosts, setFacebookCosts] = useState([]);
   const [financeStats, setFinanceStats] = useState({
@@ -64,15 +68,17 @@ export default function StockManagementPage() {
     try {
       const { getSetting } = await import('../../../actions/settings');
       
-      const [currentStock, history, fbHistory, stats, payments, baselineSetting] = await Promise.all([
+      const [currentStock, history, fbHistory, stats, payments, baselineSetting, stockHist] = await Promise.all([
         getStock('Book'),
         getExpenses(),
         getFacebookCosts(),
         getFinancialStats(),
         getSteadfastPayments(),
-        getSetting('STEADFAST_BASELINE_DATE')
+        getSetting('STEADFAST_BASELINE_DATE'),
+        getStockHistory()
       ]);
       setStockLevel(currentStock);
+      setStockHistoryData(stockHist);
       setExpenses(history);
       setFacebookCosts(fbHistory);
       if (stats.success) setFinanceStats(stats);
@@ -184,6 +190,44 @@ export default function StockManagementPage() {
       setFacebookCosts(facebookCosts.filter(e => e.id !== id));
     } catch (error) {
       console.error("Error deleting Facebook cost:", error);
+    }
+  };
+
+  const handleStockSubmit = async (e) => {
+    e.preventDefault();
+    if (!newStockAmount || isNaN(newStockAmount) || newStockAmount <= 0) return;
+    
+    setIsSavingStock(true);
+    try {
+      await addStockHistory(parseInt(newStockAmount));
+      setNewStockAmount('');
+      
+      const [currentStock, stockHist] = await Promise.all([
+        getStock('Book'),
+        getStockHistory()
+      ]);
+      setStockLevel(currentStock);
+      setStockHistoryData(stockHist);
+    } catch (error) {
+      console.error("Failed to save stock history:", error);
+    } finally {
+      setIsSavingStock(false);
+    }
+  };
+
+  const handleDeleteStock = async (id) => {
+    if (!confirm("Are you sure you want to delete this stock entry?")) return;
+    try {
+      await deleteStockHistory(id);
+      
+      const [currentStock, stockHist] = await Promise.all([
+        getStock('Book'),
+        getStockHistory()
+      ]);
+      setStockLevel(currentStock);
+      setStockHistoryData(stockHist);
+    } catch (error) {
+      console.error("Error deleting stock:", error);
     }
   };
 
@@ -383,9 +427,17 @@ export default function StockManagementPage() {
         {/* Current Stock Card */}
         <div className="bg-violet-900/20 backdrop-blur-sm border border-violet-500/30 rounded-2xl p-6 shadow-xl flex flex-col items-center justify-center relative overflow-hidden group hover:border-violet-500/60 transition-colors">
           <div className="absolute bottom-0 right-0 w-28 h-28 bg-violet-500/10 rounded-tl-full pointer-events-none"></div>
-          <div className="flex items-center gap-2 mb-2">
-            <Package className="text-violet-400" size={20} />
-            <h3 className="text-lg font-medium text-gray-400">Available Stock</h3>
+          <div className="flex items-center gap-2 mb-2 w-full justify-between">
+            <div className="flex items-center gap-2">
+              <Package className="text-violet-400" size={20} />
+              <h3 className="text-lg font-medium text-gray-400">Available Stock</h3>
+            </div>
+            <button 
+              onClick={() => setIsStockModalOpen(true)}
+              className="text-xs bg-violet-500/20 hover:bg-violet-500/40 text-violet-300 px-3 py-1.5 rounded-full transition-colors flex items-center gap-1 border border-violet-500/30 font-semibold"
+            >
+              Manage
+            </button>
           </div>
           {isLoading ? (
             <div className="h-10 flex items-center justify-center animate-pulse mt-2"><div className="w-20 h-8 bg-violet-900/50 rounded-lg"></div></div>
@@ -394,7 +446,7 @@ export default function StockManagementPage() {
               {stock} <span className="text-lg font-normal text-gray-500">units</span>
             </div>
           )}
-          <span className="text-xs text-gray-500 mt-3 uppercase tracking-wider font-semibold">Manually Updated Inventory</span>
+          <span className="text-xs text-gray-500 mt-3 uppercase tracking-wider font-semibold">Dynamically Calculated</span>
         </div>
 
         {/* Books Sold Card — accurate unit count from delivered orders */}
@@ -909,6 +961,83 @@ export default function StockManagementPage() {
           </div>
         </div>
       </div>
+
+      {/* STOCK MANAGEMENT MODAL */}
+      {isStockModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-gray-900 border border-gray-700 rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+            {/* Header */}
+            <div className="p-5 border-b border-gray-800 flex justify-between items-center bg-gray-800/50">
+              <h2 className="text-xl font-bold text-white flex items-center gap-2">
+                <Package className="text-violet-400" />
+                Stock Management
+              </h2>
+              <button 
+                onClick={() => setIsStockModalOpen(false)}
+                className="text-gray-400 hover:text-white transition-colors p-1"
+              >
+                ✕
+              </button>
+            </div>
+            
+            <div className="p-6 overflow-y-auto flex-1">
+              {/* Add Stock Form */}
+              <form onSubmit={handleStockSubmit} className="mb-8">
+                <label className="block text-sm font-medium text-gray-400 mb-2">Add New Stock Amount</label>
+                <div className="flex gap-3">
+                  <input 
+                    type="number"
+                    min="1"
+                    required
+                    value={newStockAmount}
+                    onChange={(e) => setNewStockAmount(e.target.value)}
+                    className="flex-1 bg-gray-800 border border-gray-700 text-white rounded-xl px-4 py-3 focus:ring-2 focus:ring-violet-500 focus:border-transparent outline-none transition-all"
+                    placeholder="e.g. 500"
+                  />
+                  <button 
+                    type="submit"
+                    disabled={isSavingStock || !newStockAmount}
+                    className="flex items-center gap-2 px-5 py-3 bg-violet-600 hover:bg-violet-500 text-white font-medium rounded-xl transition-colors disabled:opacity-50"
+                  >
+                    {isSavingStock ? <RefreshCw size={18} className="animate-spin" /> : <PlusCircle size={18} />}
+                    Add
+                  </button>
+                </div>
+              </form>
+
+              {/* Stock History List */}
+              <div>
+                <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-widest mb-4">Stock Additions History</h3>
+                <div className="space-y-3">
+                  {stockHistoryData.length === 0 ? (
+                    <div className="text-center py-6 text-gray-500 italic bg-gray-800/30 rounded-xl border border-gray-800">
+                      No stock history found.
+                    </div>
+                  ) : (
+                    stockHistoryData.map((entry) => (
+                      <div key={entry.id} className="flex items-center justify-between bg-gray-800/50 border border-gray-700/60 p-4 rounded-xl group hover:border-violet-500/30 transition-colors">
+                        <div>
+                          <div className="text-lg font-bold text-white">{entry.amount} <span className="text-sm font-normal text-gray-400">Books</span></div>
+                          <div className="text-xs text-gray-500 mt-1">
+                            {new Date(entry.date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
+                          </div>
+                        </div>
+                        <button
+                          onClick={() => handleDeleteStock(entry.id)}
+                          className="text-gray-500 hover:text-red-400 p-2 opacity-0 group-hover:opacity-100 transition-all bg-gray-900/50 hover:bg-red-500/10 rounded-lg"
+                          title="Delete Entry"
+                        >
+                          <Trash2 size={18} />
+                        </button>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

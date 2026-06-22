@@ -9,7 +9,7 @@ import {
   ArrowUpRight, ArrowDownRight, Calendar, TrendingUp, 
   Package, DollarSign, Activity, MapPin, ChevronDown, 
   Smartphone, Cpu, Share2, Globe, ShieldCheck, CheckCircle, Send,
-  Megaphone, Wallet, ShoppingBag, X, Clock, Filter, User
+  Megaphone, Wallet, ShoppingBag, X, Clock, Filter, User, XCircle
 } from 'lucide-react';
 import { format, subDays, isSameDay, startOfDay, isToday, isYesterday, isThisMonth, isThisYear, startOfMonth, endOfMonth, startOfYear, endOfYear } from 'date-fns';
 import { UAParser } from 'ua-parser-js'; 
@@ -924,6 +924,8 @@ export default function AnalyticsDashboard() {
     let rangeSessionsCount = 0;
     let rangeShippedCount = 0;
     let rangeDeliveredCount = 0;
+    let rangeCancelledCount = 0;
+    let rangeReturnedCount = 0;
     
     // Marketing Counters
     let paidCount = 0;
@@ -1053,8 +1055,21 @@ export default function AnalyticsDashboard() {
       // D. Returned Logic
       if (order.status === 'Returned') {
         const returnedDate = order.returnedAt ? new Date(order.returnedAt) : createdDate;
+        if (isDateInRange(returnedDate)) {
+            rangeReturnedCount++;
+        }
         const dayStat = chartDataArr.find(d => isSameDay(d.fullDate, returnedDate));
         if (dayStat) dayStat.returned += 1;
+      }
+
+      // E. Cancelled Logic
+      if (order.status === 'Cancelled') {
+        const cancelledDate = order.cancelledAt ? new Date(order.cancelledAt) : createdDate;
+        if (isDateInRange(cancelledDate)) {
+            rangeCancelledCount++;
+        }
+        const dayStat = chartDataArr.find(d => isSameDay(d.fullDate, cancelledDate));
+        if (dayStat) dayStat.cancelled += 1;
       }
 
       // 5. UA Parsing 
@@ -1262,6 +1277,12 @@ export default function AnalyticsDashboard() {
       rangeRevenue, 
       rangeShippedCount,
       rangeDeliveredCount,
+      rangeCancelledCount,
+      rangeReturnedCount,
+      cancellationRatio: rangeOrdersCount > 0 ? ((rangeCancelledCount / rangeOrdersCount) * 100).toFixed(1) : '0',
+      returnRate: rangeShippedCount > 0 ? ((rangeReturnedCount / rangeShippedCount) * 100).toFixed(1) : '0',
+      deliveryVsOrders: rangeOrdersCount > 0 ? ((rangeDeliveredCount / rangeOrdersCount) * 100).toFixed(1) : '0',
+      deliveryVsShipped: rangeShippedCount > 0 ? ((rangeDeliveredCount / rangeShippedCount) * 100).toFixed(1) : '0',
       totalRevenue,
       todayOrders,
       growth: growth.toFixed(1) + '%',
@@ -1281,8 +1302,7 @@ export default function AnalyticsDashboard() {
       ],
       genderData: [
         { name: 'Male', value: maleCount, color: '#3B82F6' },
-        { name: 'Female', value: femaleCount, color: '#EC4899' },
-        { name: 'Unknown', value: unknownGenderCount, color: '#9CA3AF' }
+        { name: 'Female', value: femaleCount, color: '#EC4899' }
       ].filter(i => i.value > 0),
       insidePct,
       paidPct,
@@ -1395,6 +1415,256 @@ export default function AnalyticsDashboard() {
           trend={analytics?.growthDirection} 
           trendValue={analytics?.growth}
         />
+      </div>
+
+      {/* ORDER HEALTH RATIOS */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-8">
+
+        {/* CANCELLATION RATIO */}
+        {(() => {
+          const ratio = parseFloat(analytics?.cancellationRatio || '0');
+          const cancelled = analytics?.rangeCancelledCount || 0;
+          const total = analytics?.rangeOrdersCount || 0;
+          // Colour zones: green < 10%, amber 10-20%, red > 20%
+          const color = ratio < 10 ? '#10B981' : ratio < 20 ? '#F59E0B' : '#EF4444';
+          const glow  = ratio < 10 ? 'rgba(16,185,129,0.15)' : ratio < 20 ? 'rgba(245,158,11,0.15)' : 'rgba(239,68,68,0.15)';
+          const label = ratio < 10 ? 'Healthy' : ratio < 20 ? 'Monitor' : 'High';
+          const arc = Math.min(ratio / 40, 1); // 40% = full arc
+          const r = 52, cx = 68, cy = 68;
+          const circumference = Math.PI * r; // half-circle
+          const dash = arc * circumference;
+          return (
+            <Card className="relative overflow-hidden" style={{ background: 'linear-gradient(135deg, rgba(15,18,30,0.95) 0%, rgba(10,14,25,0.98) 100%)' }}>
+              <div className="absolute -top-10 -right-10 w-40 h-40 rounded-full blur-3xl pointer-events-none" style={{ background: `${color}10` }} />
+              <div className="flex items-center gap-2 mb-5">
+                <div className="p-2 rounded-lg border" style={{ background: `${color}15`, borderColor: `${color}30` }}>
+                  <XCircle size={16} style={{ color }} />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-white tracking-tight">Cancellation Ratio</h3>
+                  <p className="text-[10px] text-gray-500 uppercase tracking-wider">vs total orders placed</p>
+                </div>
+                <span className="ml-auto text-[10px] font-bold px-2 py-0.5 rounded-full border" style={{ color, borderColor: `${color}40`, background: `${color}10` }}>
+                  {label}
+                </span>
+              </div>
+
+              <div className="flex items-center gap-6">
+                {/* Half-circle gauge */}
+                <div className="relative shrink-0" style={{ width: 136, height: 76 }}>
+                  <svg width="136" height="76" viewBox="0 0 136 76">
+                    {/* Track */}
+                    <path d={`M ${cx - r},${cy} a ${r},${r} 0 0,1 ${r * 2},0`}
+                      fill="none" stroke="rgba(255,255,255,0.07)" strokeWidth="12" strokeLinecap="round" />
+                    {/* Fill */}
+                    <path d={`M ${cx - r},${cy} a ${r},${r} 0 0,1 ${r * 2},0`}
+                      fill="none" stroke={color} strokeWidth="12" strokeLinecap="round"
+                      strokeDasharray={`${dash} ${circumference}`}
+                      style={{ filter: `drop-shadow(0 0 6px ${color}80)`, transition: 'stroke-dasharray 0.8s ease' }} />
+                  </svg>
+                  <div className="absolute bottom-0 left-0 w-full text-center">
+                    <span className="text-2xl font-black leading-none" style={{ color }}>{ratio.toFixed(1)}<span className="text-sm">%</span></span>
+                  </div>
+                </div>
+
+                {/* Stats */}
+                <div className="flex-1 space-y-3">
+                  <div className="flex justify-between items-center py-2 border-b border-white/5">
+                    <span className="text-xs text-gray-400">Cancelled</span>
+                    <span className="text-sm font-bold" style={{ color }}>{cancelled.toLocaleString()}</span>
+                  </div>
+                  <div className="flex justify-between items-center py-2 border-b border-white/5">
+                    <span className="text-xs text-gray-400">Total Orders</span>
+                    <span className="text-sm font-bold text-white">{total.toLocaleString()}</span>
+                  </div>
+                  <div className="text-[10px] text-gray-600 leading-relaxed pt-1">
+                    Based on orders placed in the selected period
+                  </div>
+                </div>
+              </div>
+            </Card>
+          );
+        })()}
+
+        {/* RETURN RATE */}
+        {(() => {
+          const ratio = parseFloat(analytics?.returnRate || '0');
+          const returned = analytics?.rangeReturnedCount || 0;
+          const shipped  = analytics?.rangeShippedCount  || 0;
+          const color = ratio < 8 ? '#10B981' : ratio < 15 ? '#F59E0B' : '#EF4444';
+          const label = ratio < 8 ? 'Low' : ratio < 15 ? 'Average' : 'High';
+          const arc = Math.min(ratio / 40, 1);
+          const r = 52, cx = 68, cy = 68;
+          const circumference = Math.PI * r;
+          const dash = arc * circumference;
+          return (
+            <Card className="relative overflow-hidden" style={{ background: 'linear-gradient(135deg, rgba(15,18,30,0.95) 0%, rgba(10,14,25,0.98) 100%)' }}>
+              <div className="absolute -top-10 -right-10 w-40 h-40 rounded-full blur-3xl pointer-events-none" style={{ background: `${color}10` }} />
+              <div className="flex items-center gap-2 mb-5">
+                <div className="p-2 rounded-lg border" style={{ background: `${color}15`, borderColor: `${color}30` }}>
+                  <Package size={16} style={{ color }} />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-white tracking-tight">Return Rate</h3>
+                  <p className="text-[10px] text-gray-500 uppercase tracking-wider">returned ÷ shipped parcels</p>
+                </div>
+                <span className="ml-auto text-[10px] font-bold px-2 py-0.5 rounded-full border" style={{ color, borderColor: `${color}40`, background: `${color}10` }}>
+                  {label}
+                </span>
+              </div>
+
+              <div className="flex items-center gap-6">
+                {/* Half-circle gauge */}
+                <div className="relative shrink-0" style={{ width: 136, height: 76 }}>
+                  <svg width="136" height="76" viewBox="0 0 136 76">
+                    <path d={`M ${cx - r},${cy} a ${r},${r} 0 0,1 ${r * 2},0`}
+                      fill="none" stroke="rgba(255,255,255,0.07)" strokeWidth="12" strokeLinecap="round" />
+                    <path d={`M ${cx - r},${cy} a ${r},${r} 0 0,1 ${r * 2},0`}
+                      fill="none" stroke={color} strokeWidth="12" strokeLinecap="round"
+                      strokeDasharray={`${dash} ${circumference}`}
+                      style={{ filter: `drop-shadow(0 0 6px ${color}80)`, transition: 'stroke-dasharray 0.8s ease' }} />
+                  </svg>
+                  <div className="absolute bottom-0 left-0 w-full text-center">
+                    <span className="text-2xl font-black leading-none" style={{ color }}>{ratio.toFixed(1)}<span className="text-sm">%</span></span>
+                  </div>
+                </div>
+
+                {/* Stats */}
+                <div className="flex-1 space-y-3">
+                  <div className="flex justify-between items-center py-2 border-b border-white/5">
+                    <span className="text-xs text-gray-400">Returned</span>
+                    <span className="text-sm font-bold" style={{ color }}>{returned.toLocaleString()}</span>
+                  </div>
+                  <div className="flex justify-between items-center py-2 border-b border-white/5">
+                    <span className="text-xs text-gray-400">Shipped</span>
+                    <span className="text-sm font-bold text-white">{shipped.toLocaleString()}</span>
+                  </div>
+                  <div className="text-[10px] text-gray-600 leading-relaxed pt-1">
+                    Parcels returned vs total dispatched to courier
+                  </div>
+                </div>
+              </div>
+            </Card>
+          );
+        })()}
+
+        {/* DELIVERY RATE VS TOTAL ORDERS */}
+        {(() => {
+          const ratio = parseFloat(analytics?.deliveryVsOrders || '0');
+          const delivered = analytics?.rangeDeliveredCount || 0;
+          const total     = analytics?.rangeOrdersCount     || 0;
+          // Higher is better: green ≥ 60%, amber 40–60%, red < 40%
+          const color = ratio >= 60 ? '#10B981' : ratio >= 40 ? '#F59E0B' : '#EF4444';
+          const label = ratio >= 60 ? 'Strong' : ratio >= 40 ? 'Average' : 'Low';
+          const arc   = Math.min(ratio / 100, 1);
+          const r = 52, cx = 68, cy = 68;
+          const circumference = Math.PI * r;
+          const dash = arc * circumference;
+          return (
+            <Card className="relative overflow-hidden" style={{ background: 'linear-gradient(135deg, rgba(15,18,30,0.95) 0%, rgba(10,14,25,0.98) 100%)' }}>
+              <div className="absolute -top-10 -right-10 w-40 h-40 rounded-full blur-3xl pointer-events-none" style={{ background: `${color}10` }} />
+              <div className="flex items-center gap-2 mb-5">
+                <div className="p-2 rounded-lg border" style={{ background: `${color}15`, borderColor: `${color}30` }}>
+                  <CheckCircle size={16} style={{ color }} />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-white tracking-tight">Delivery Rate</h3>
+                  <p className="text-[10px] text-gray-500 uppercase tracking-wider">delivered ÷ total orders</p>
+                </div>
+                <span className="ml-auto text-[10px] font-bold px-2 py-0.5 rounded-full border" style={{ color, borderColor: `${color}40`, background: `${color}10` }}>
+                  {label}
+                </span>
+              </div>
+              <div className="flex items-center gap-6">
+                <div className="relative shrink-0" style={{ width: 136, height: 76 }}>
+                  <svg width="136" height="76" viewBox="0 0 136 76">
+                    <path d={`M ${cx - r},${cy} a ${r},${r} 0 0,1 ${r * 2},0`}
+                      fill="none" stroke="rgba(255,255,255,0.07)" strokeWidth="12" strokeLinecap="round" />
+                    <path d={`M ${cx - r},${cy} a ${r},${r} 0 0,1 ${r * 2},0`}
+                      fill="none" stroke={color} strokeWidth="12" strokeLinecap="round"
+                      strokeDasharray={`${dash} ${circumference}`}
+                      style={{ filter: `drop-shadow(0 0 6px ${color}80)`, transition: 'stroke-dasharray 0.8s ease' }} />
+                  </svg>
+                  <div className="absolute bottom-0 left-0 w-full text-center">
+                    <span className="text-2xl font-black leading-none" style={{ color }}>{ratio.toFixed(1)}<span className="text-sm">%</span></span>
+                  </div>
+                </div>
+                <div className="flex-1 space-y-3">
+                  <div className="flex justify-between items-center py-2 border-b border-white/5">
+                    <span className="text-xs text-gray-400">Delivered</span>
+                    <span className="text-sm font-bold" style={{ color }}>{delivered.toLocaleString()}</span>
+                  </div>
+                  <div className="flex justify-between items-center py-2 border-b border-white/5">
+                    <span className="text-xs text-gray-400">Total Orders</span>
+                    <span className="text-sm font-bold text-white">{total.toLocaleString()}</span>
+                  </div>
+                  <div className="text-[10px] text-gray-600 leading-relaxed pt-1">
+                    All orders placed in the selected period
+                  </div>
+                </div>
+              </div>
+            </Card>
+          );
+        })()}
+
+        {/* FULFILLMENT RATE: DELIVERED VS SHIPPED */}
+        {(() => {
+          const ratio = parseFloat(analytics?.deliveryVsShipped || '0');
+          const delivered = analytics?.rangeDeliveredCount || 0;
+          const shipped   = analytics?.rangeShippedCount   || 0;
+          const color = ratio >= 70 ? '#10B981' : ratio >= 50 ? '#F59E0B' : '#EF4444';
+          const label = ratio >= 70 ? 'Excellent' : ratio >= 50 ? 'Average' : 'Low';
+          const arc   = Math.min(ratio / 100, 1);
+          const r = 52, cx = 68, cy = 68;
+          const circumference = Math.PI * r;
+          const dash = arc * circumference;
+          return (
+            <Card className="relative overflow-hidden" style={{ background: 'linear-gradient(135deg, rgba(15,18,30,0.95) 0%, rgba(10,14,25,0.98) 100%)' }}>
+              <div className="absolute -top-10 -right-10 w-40 h-40 rounded-full blur-3xl pointer-events-none" style={{ background: `${color}10` }} />
+              <div className="flex items-center gap-2 mb-5">
+                <div className="p-2 rounded-lg border" style={{ background: `${color}15`, borderColor: `${color}30` }}>
+                  <Send size={16} style={{ color }} />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-white tracking-tight">Fulfillment Rate</h3>
+                  <p className="text-[10px] text-gray-500 uppercase tracking-wider">delivered ÷ shipped</p>
+                </div>
+                <span className="ml-auto text-[10px] font-bold px-2 py-0.5 rounded-full border" style={{ color, borderColor: `${color}40`, background: `${color}10` }}>
+                  {label}
+                </span>
+              </div>
+              <div className="flex items-center gap-6">
+                <div className="relative shrink-0" style={{ width: 136, height: 76 }}>
+                  <svg width="136" height="76" viewBox="0 0 136 76">
+                    <path d={`M ${cx - r},${cy} a ${r},${r} 0 0,1 ${r * 2},0`}
+                      fill="none" stroke="rgba(255,255,255,0.07)" strokeWidth="12" strokeLinecap="round" />
+                    <path d={`M ${cx - r},${cy} a ${r},${r} 0 0,1 ${r * 2},0`}
+                      fill="none" stroke={color} strokeWidth="12" strokeLinecap="round"
+                      strokeDasharray={`${dash} ${circumference}`}
+                      style={{ filter: `drop-shadow(0 0 6px ${color}80)`, transition: 'stroke-dasharray 0.8s ease' }} />
+                  </svg>
+                  <div className="absolute bottom-0 left-0 w-full text-center">
+                    <span className="text-2xl font-black leading-none" style={{ color }}>{ratio.toFixed(1)}<span className="text-sm">%</span></span>
+                  </div>
+                </div>
+                <div className="flex-1 space-y-3">
+                  <div className="flex justify-between items-center py-2 border-b border-white/5">
+                    <span className="text-xs text-gray-400">Delivered</span>
+                    <span className="text-sm font-bold" style={{ color }}>{delivered.toLocaleString()}</span>
+                  </div>
+                  <div className="flex justify-between items-center py-2 border-b border-white/5">
+                    <span className="text-xs text-gray-400">Shipped</span>
+                    <span className="text-sm font-bold text-white">{shipped.toLocaleString()}</span>
+                  </div>
+                  <div className="text-[10px] text-gray-600 leading-relaxed pt-1">
+                    Of all courier-dispatched parcels, how many reached the customer
+                  </div>
+                </div>
+              </div>
+            </Card>
+          );
+        })()}
+
       </div>
 
       {/* FUNNEL AND FIXED CONVERSION STATS */}
@@ -1787,8 +2057,20 @@ export default function AnalyticsDashboard() {
                         </PieChart>
                     </ResponsiveContainer>
                     <div className="absolute inset-0 flex items-center justify-center flex-col pointer-events-none">
-                        <span className="text-3xl font-bold text-white tracking-tighter">{analytics?.malePct}%</span>
-                        <span className="text-[11px] font-bold text-gray-500 uppercase tracking-widest mt-1">Male</span>
+                        <span className="text-3xl font-bold text-white tracking-tighter">
+                            {analytics?.malePct > 0 || analytics?.genderData?.some(g => g.name === 'Female' && g.value > 0) 
+                                ? `${analytics?.malePct}%` 
+                                : analytics?.genderData?.some(g => g.name === 'Unknown' && g.value > 0) 
+                                    ? '100%' 
+                                    : '0%'}
+                        </span>
+                        <span className="text-[11px] font-bold text-gray-500 uppercase tracking-widest mt-1">
+                            {analytics?.malePct > 0 || analytics?.genderData?.some(g => g.name === 'Female' && g.value > 0) 
+                                ? 'Male' 
+                                : analytics?.genderData?.some(g => g.name === 'Unknown' && g.value > 0) 
+                                    ? 'Unknown' 
+                                    : 'Male'}
+                        </span>
                     </div>
                 </div>
                 <div className="flex gap-4">

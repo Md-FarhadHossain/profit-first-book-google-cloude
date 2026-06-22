@@ -860,6 +860,156 @@ const OrderIdsModal = ({ isOpen, onClose, orderIdsText, title, subtitle }) => {
   );
 };
 
+// --- EDIT COURIER IDs MODAL ---
+const EditCourierIdsModal = ({ isOpen, onClose, onSave, order }) => {
+  const [consignmentId, setConsignmentId] = useState("");
+  const [trackingCode, setTrackingCode] = useState("");
+  const [isSaving, setIsSaving] = useState(false);
+
+  useEffect(() => {
+    if (isOpen && order) {
+      setConsignmentId(order.consignmentId || "");
+      setTrackingCode(order.trackingCode || "");
+    }
+  }, [isOpen, order]);
+
+  if (!isOpen || !order) return null;
+
+  const handleSave = async () => {
+    setIsSaving(true);
+    await onSave(order.id, { consignmentId: consignmentId.trim(), trackingCode: trackingCode.trim() });
+    setIsSaving(false);
+  };
+
+  return (
+    <div className="fixed inset-0 z-[80] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-in fade-in duration-200">
+      <div className="bg-gray-900 border border-purple-500/30 rounded-xl w-full max-w-md shadow-2xl overflow-hidden shadow-purple-500/10">
+        {/* Header */}
+        <div className="bg-gray-800/80 px-6 py-4 border-b border-gray-700 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-purple-500/10 rounded-lg text-purple-400">
+              <Edit size={20} />
+            </div>
+            <div>
+              <h3 className="text-white font-bold text-lg">Edit Courier IDs</h3>
+              <p className="text-xs text-gray-400">Order #{order.orderId}</p>
+            </div>
+          </div>
+          <button onClick={onClose} className="text-gray-400 hover:text-white transition-colors">
+            <X size={20} />
+          </button>
+        </div>
+        {/* Body */}
+        <div className="p-6 space-y-5">
+          <div className="space-y-2">
+            <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest flex items-center gap-1.5">
+              <Truck size={12} className="text-indigo-400" /> Courier Tracking Code (e.g. SFR…)
+            </label>
+            <input
+              type="text"
+              value={trackingCode}
+              onChange={(e) => setTrackingCode(e.target.value)}
+              placeholder="e.g. SFR260622ST0D2710EBD"
+              className="w-full bg-gray-950 text-gray-200 border border-gray-600 rounded-xl px-4 py-3 text-sm font-mono focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all shadow-inner placeholder:text-gray-600"
+            />
+          </div>
+          <div className="space-y-2">
+            <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest flex items-center gap-1.5">
+              <Package size={12} className="text-fuchsia-400" /> Parcel / Consignment ID (e.g. #263004341)
+            </label>
+            <input
+              type="text"
+              value={consignmentId}
+              onChange={(e) => setConsignmentId(e.target.value)}
+              placeholder="e.g. 263004341"
+              className="w-full bg-gray-950 text-gray-200 border border-gray-600 rounded-xl px-4 py-3 text-sm font-mono focus:outline-none focus:border-fuchsia-500 focus:ring-1 focus:ring-fuchsia-500 transition-all shadow-inner placeholder:text-gray-600"
+            />
+            <p className="text-[10px] text-gray-500 mt-1">Enter the numeric ID without the # prefix — it will be added automatically.</p>
+          </div>
+          <div className="flex gap-3 pt-2">
+            <button
+              onClick={onClose}
+              disabled={isSaving}
+              className="flex-1 py-2.5 bg-gray-800 text-gray-300 rounded-lg hover:bg-gray-700 font-medium transition-colors text-sm disabled:opacity-50"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleSave}
+              disabled={isSaving}
+              className="flex-1 py-2.5 bg-purple-600 text-white rounded-lg hover:bg-purple-500 font-bold transition-colors text-sm flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed shadow-lg shadow-purple-500/20"
+            >
+              {isSaving ? <><Loader2 size={16} className="animate-spin" /> Saving…</> : <><Check size={16} /> Save IDs</>}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// --- REVERT IN-REVIEW MODAL ---
+const RevertInReviewModal = ({ isOpen, onClose, onConfirm, count, isReverting }) => {
+  if (!isOpen) return null;
+  return (
+    <div className="fixed inset-0 z-[80] flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm animate-in fade-in duration-200">
+      <div className="bg-gray-900 border border-orange-500/30 rounded-xl w-full max-w-md shadow-2xl overflow-hidden shadow-orange-500/10">
+        {/* Header */}
+        <div className="bg-gradient-to-r from-orange-950/60 to-gray-900 px-6 py-5 border-b border-gray-700 flex items-center gap-4">
+          <div className="w-12 h-12 bg-orange-500/10 border border-orange-500/20 rounded-full flex items-center justify-center text-orange-400 shrink-0">
+            <RotateCcw size={22} />
+          </div>
+          <div>
+            <h3 className="text-white font-bold text-lg leading-tight">Revert to Processing</h3>
+            <p className="text-xs text-orange-300/80 mt-0.5">This action will undo all courier assignments</p>
+          </div>
+        </div>
+        {/* Body */}
+        <div className="p-6 space-y-4">
+          <div className="bg-orange-950/20 border border-orange-500/20 rounded-xl p-4 space-y-2">
+            <p className="text-sm text-gray-200 leading-relaxed">
+              You are about to revert <span className="font-bold text-orange-300 text-base">{count}</span> orders from{' '}
+              <span className="font-mono text-indigo-300 bg-indigo-950/40 px-1.5 py-0.5 rounded text-xs">In Review</span>{' '}
+              back to{' '}
+              <span className="font-mono text-teal-300 bg-teal-950/40 px-1.5 py-0.5 rounded text-xs">Processing</span>.
+            </p>
+            <p className="text-xs text-gray-400 leading-relaxed">
+              For each order, this will:
+            </p>
+            <ul className="text-xs text-gray-400 space-y-1 list-none">
+              <li className="flex items-center gap-2"><span className="text-orange-400">✕</span> Clear the Courier Tracking Code</li>
+              <li className="flex items-center gap-2"><span className="text-orange-400">✕</span> Clear the Consignment / Parcel ID</li>
+              <li className="flex items-center gap-2"><span className="text-orange-400">→</span> Reset status to <strong className="text-white">Processing</strong></li>
+            </ul>
+          </div>
+          <p className="text-[11px] text-gray-500 text-center italic">
+            ⚠️ This does NOT cancel the shipment on Steadfast — do that manually if needed.
+          </p>
+          <div className="flex gap-3 pt-1">
+            <button
+              onClick={onClose}
+              disabled={isReverting}
+              className="flex-1 py-2.5 bg-gray-800 text-gray-300 rounded-lg hover:bg-gray-700 font-medium transition-colors text-sm disabled:opacity-50"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={onConfirm}
+              disabled={isReverting}
+              className="flex-1 py-2.5 bg-orange-600 text-white rounded-lg hover:bg-orange-500 font-bold transition-all text-sm flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed shadow-lg shadow-orange-500/20"
+            >
+              {isReverting
+                ? <><Loader2 size={16} className="animate-spin" /> Reverting…</>
+                : <><RotateCcw size={16} /> Yes, Revert All</>
+              }
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 // --- UPDATED ORDER MODAL ---
 const OrderModal = ({
   order,
@@ -870,6 +1020,7 @@ const OrderModal = ({
   onPriceChange,
   onLocationChange,
   onCustomerInfoChange,
+  onEditCourierIds,
 }) => {
   const [isEditingPrice, setIsEditingPrice] = useState(false);
   const [tempPrice, setTempPrice] = useState(order?.totalValue || 0);
@@ -984,6 +1135,14 @@ const OrderModal = ({
                         <span className="copy-text-parcel">{order.consignmentId.startsWith('#') ? order.consignmentId : `#${order.consignmentId}`}</span>
                       </div>
                     )}
+                    {/* Edit Courier IDs Button */}
+                    <button
+                      onClick={(e) => { e.stopPropagation(); onEditCourierIds && onEditCourierIds(); }}
+                      title="Edit Courier / Tracking IDs"
+                      className="flex items-center gap-1 px-2 py-1 bg-purple-500/15 border border-purple-500/30 text-purple-300 text-[10px] font-bold tracking-wider rounded-md hover:bg-purple-500/25 transition-all"
+                    >
+                      <Edit size={10} /> Edit IDs
+                    </button>
                   </div>
                 </div>
                 <div className="flex flex-wrap items-center gap-2 md:gap-3 text-[10px] md:text-xs font-medium text-gray-400">
@@ -1452,6 +1611,14 @@ export default function App() {
   const [orderIdsText, setOrderIdsText] = useState("");
   const [orderIdsModalConfig, setOrderIdsModalConfig] = useState({ title: 'In Review Consignment IDs', subtitle: 'Comma-separated list' });
 
+  // Edit Courier IDs Modal State
+  const [isEditCourierIdsOpen, setIsEditCourierIdsOpen] = useState(false);
+  const [editCourierOrder, setEditCourierOrder] = useState(null);
+
+  // Revert In Review Modal State
+  const [isRevertModalOpen, setIsRevertModalOpen] = useState(false);
+  const [isReverting, setIsReverting] = useState(false);
+
   // Pinned / Working Row Highlight State
   const [pinnedOrderId, setPinnedOrderId] = useState(null);
 
@@ -1817,6 +1984,95 @@ export default function App() {
        setIsSendingBulkCourier(false);
        setIsBulkCourierModalOpen(false);
      }
+   };
+
+  const handleSaveCourierIds = async (id, { consignmentId, trackingCode }) => {
+    activeRequestsRef.current++;
+    const originalOrder = orders.find(o => o.id === id);
+
+    // Optimistic update
+    setOrders(prev => prev.map(o => o.id === id ? { ...o, consignmentId: consignmentId || null, trackingCode: trackingCode || null } : o));
+    if (selectedOrder?.id === id) {
+      setSelectedOrder(prev => ({ ...prev, consignmentId: consignmentId || null, trackingCode: trackingCode || null }));
+    }
+
+    try {
+      const res = await fetch(`/api/orders/${id}/courier-ids`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ consignmentId, trackingCode }),
+      });
+      if (!res.ok) throw new Error("Server failed to save courier IDs");
+      setIsEditCourierIdsOpen(false);
+      setEditCourierOrder(null);
+    } catch (e) {
+      console.error(e);
+      // Rollback
+      setOrders(prev => prev.map(o => o.id === id ? { ...o, consignmentId: originalOrder?.consignmentId || null, trackingCode: originalOrder?.trackingCode || null } : o));
+      if (selectedOrder?.id === id) {
+        setSelectedOrder(prev => ({ ...prev, consignmentId: originalOrder?.consignmentId || null, trackingCode: originalOrder?.trackingCode || null }));
+      }
+      alert("Network error: Failed to save courier IDs. Please try again.");
+    } finally {
+      setTimeout(() => { activeRequestsRef.current = Math.max(0, activeRequestsRef.current - 1); }, 2000);
+    }
+  };
+
+  const handleRevertInReview = async () => {
+    // Collect all currently-visible "In Review" orders (respects current filters)
+    const inReviewOrders = orders.filter(o => o.status === 'In Review');
+    if (inReviewOrders.length === 0) {
+      setIsRevertModalOpen(false);
+      return;
+    }
+
+    setIsReverting(true);
+    activeRequestsRef.current++;
+
+    // Optimistic update — instantly flip the UI
+    setOrders(prev =>
+      prev.map(o =>
+        o.status === 'In Review'
+          ? { ...o, status: 'Processing', consignmentId: null, trackingCode: null, courierStatus: 'pending' }
+          : o
+      )
+    );
+    // Also clear selected order if it was In Review
+    if (selectedOrder?.status === 'In Review') {
+      setSelectedOrder(prev => prev
+        ? { ...prev, status: 'Processing', consignmentId: null, trackingCode: null, courierStatus: 'pending' }
+        : null
+      );
+    }
+
+    try {
+      const ids = inReviewOrders.map(o => o.id);
+      const res = await fetch('/api/orders/bulk-revert', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ orderIds: ids }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) throw new Error(data.message || 'Bulk revert failed');
+      setIsRevertModalOpen(false);
+      // Clear filter so user can see the reverted orders in Processing
+      setStatusFilter('Processing');
+    } catch (e) {
+      console.error('Revert error:', e);
+      // Rollback — restore original states
+      setOrders(prev =>
+        prev.map(o => {
+          const orig = inReviewOrders.find(r => r.id === o.id);
+          return orig
+            ? { ...o, status: 'In Review', consignmentId: orig.consignmentId, trackingCode: orig.trackingCode, courierStatus: orig.courierStatus }
+            : o;
+        })
+      );
+      alert('Failed to revert orders. Please try again.');
+    } finally {
+      setIsReverting(false);
+      setTimeout(() => { activeRequestsRef.current = Math.max(0, activeRequestsRef.current - 1); }, 2000);
+    }
   };
 
   const handleCallStatusChange = async (id, newCallStatus) => {
@@ -2196,6 +2452,19 @@ export default function App() {
         title={orderIdsModalConfig.title}
         subtitle={orderIdsModalConfig.subtitle}
       />
+      <EditCourierIdsModal
+        isOpen={isEditCourierIdsOpen}
+        onClose={() => { setIsEditCourierIdsOpen(false); setEditCourierOrder(null); }}
+        onSave={handleSaveCourierIds}
+        order={editCourierOrder}
+      />
+      <RevertInReviewModal
+        isOpen={isRevertModalOpen}
+        onClose={() => setIsRevertModalOpen(false)}
+        onConfirm={handleRevertInReview}
+        count={orders.filter(o => o.status === 'In Review').length}
+        isReverting={isReverting}
+      />
       {selectedOrder && (
         <OrderModal
           order={selectedOrder}
@@ -2210,6 +2479,10 @@ export default function App() {
           onPriceChange={(val) => handlePriceChange(selectedOrder.id, val)}
           onLocationChange={(d, t, a) => handleLocationChange(selectedOrder.id, d, t, a)}
           onCustomerInfoChange={(name, phone) => handleCustomerInfoChange(selectedOrder.id, name, phone)}
+          onEditCourierIds={() => {
+            setEditCourierOrder(selectedOrder);
+            setIsEditCourierIdsOpen(true);
+          }}
         />
       )}
       <header className="mb-6 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
@@ -2426,6 +2699,17 @@ export default function App() {
                 <Package size={14} /> Consignment IDs
               </button>
             )}
+
+            {statusFilter === "In Review" && (
+              <button
+                onClick={() => setIsRevertModalOpen(true)}
+                className="flex-1 sm:flex-none inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-orange-600 hover:bg-orange-500 text-white text-sm font-bold rounded-xl transition-all shadow-md border border-orange-500/50 whitespace-nowrap"
+                title={`Revert all ${statusCounts['In Review'] || 0} In Review orders back to Processing`}
+              >
+                <RotateCcw size={14} /> Revert to Processing
+              </button>
+            )}
+
 
             {statusFilter === "ConfirmedProcessing" && (
               <button

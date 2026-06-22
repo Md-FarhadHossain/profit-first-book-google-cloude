@@ -26,6 +26,11 @@ export async function PATCH(request, props) {
       await db.update(orders).set({ name: body.name, number: body.phone }).where(eq(orders.id, Number(id)));
     } else if (action === "location") {
       await db.update(orders).set({ address: body.address, district: body.district, thana: body.thana }).where(eq(orders.id, Number(id)));
+    } else if (action === "courier-ids") {
+      const updateData = {};
+      if (body.consignmentId !== undefined) updateData.consignmentId = body.consignmentId || null;
+      if (body.trackingCode !== undefined) updateData.trackingCode = body.trackingCode || null;
+      await db.update(orders).set(updateData).where(eq(orders.id, Number(id)));
     } else if (action === "move-to-abandoned") {
       const [order] = await db.select().from(orders).where(eq(orders.id, Number(id)));
       if (order) {

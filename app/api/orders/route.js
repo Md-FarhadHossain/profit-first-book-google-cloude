@@ -158,7 +158,8 @@ export async function GET(request) {
       shippedAt: o.shippedAt || null,
       deliveredAt: o.deliveredAt || null,
       returnedAt: o.returnedAt || null,
-      courierNote: o.courierNote || null
+      courierNote: o.courierNote || null,
+      scheduledDate: o.scheduledDate || null
     }));
     
     return NextResponse.json(mappedOrders);

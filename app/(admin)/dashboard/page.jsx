@@ -401,6 +401,7 @@ const FraudCheckerBadge = ({ phone }) => {
 const StatusBadge = ({ status }) => {
   const statusConfig = {
     Processing: { icon: <CircleDot size={14} />, color: "bg-blue-600" },
+    Scheduled: { icon: <Calendar size={14} />, color: "bg-purple-600" },
     "In Review": { icon: <Eye size={14} />, color: "bg-indigo-600" },
     Shipped: { icon: <Truck size={14} />, color: "bg-purple-600" },
     Delivered: { icon: <CheckCircle size={14} />, color: "bg-green-600" },
@@ -739,8 +740,63 @@ const NoteModal = ({ isOpen, onClose, onSave, order, initialNote }) => {
   );
 };
 
+// --- MISSING ADDRESS MODAL ---
+const MissingAddressModal = ({ isOpen, onClose, onSkip }) => {
+  const [confirmed, setConfirmed] = React.useState(false);
+
+  React.useEffect(() => {
+    if (isOpen) setConfirmed(false);
+  }, [isOpen]);
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-in fade-in duration-200">
+      <div className="bg-[#0f141e] border border-orange-500/20 rounded-2xl w-full max-w-sm shadow-2xl overflow-hidden shadow-orange-500/10 transform scale-100 p-6 flex flex-col items-center">
+        <div className="w-14 h-14 bg-orange-500/10 border border-orange-500/30 rounded-full flex items-center justify-center text-orange-500 mb-4 shadow-inner">
+          <MapPin size={24} />
+        </div>
+        <h3 className="text-xl font-bold text-white mb-3">
+          Missing Address Details
+        </h3>
+        <p className="text-sm text-gray-300 text-center mb-6">
+          You have orders in this batch that are missing the <strong className="text-white">District</strong> or <strong className="text-white">Thana</strong>. Please update them before sending to the courier.
+        </p>
+
+        <label className="flex items-center gap-3 w-full p-4 rounded-xl border border-gray-700 bg-gray-800/50 cursor-pointer hover:bg-gray-800 transition-colors mb-6">
+          <input
+            type="checkbox"
+            checked={confirmed}
+            onChange={(e) => setConfirmed(e.target.checked)}
+            className="w-4 h-4 rounded bg-gray-900 border-gray-600 text-orange-500 focus:ring-orange-500 focus:ring-offset-gray-900"
+          />
+          <span className="text-sm text-gray-300">I confirm I want to skip this warning</span>
+        </label>
+
+        <div className="flex gap-3 w-full">
+          <button
+            onClick={onSkip}
+            disabled={!confirmed}
+            className="flex-1 py-2.5 bg-gray-800 hover:bg-gray-700 text-gray-400 text-sm font-bold rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            Skip
+          </button>
+          <button
+            onClick={onClose}
+            className="flex-1 py-2.5 bg-[#ff5714] hover:bg-[#ff6b2f] text-white text-sm font-bold rounded-xl shadow-lg shadow-orange-500/20 transition-colors"
+          >
+            Okay
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 // --- COURIER CONFIRMATION MODAL ---
 const CourierModal = ({ isOpen, onClose, onConfirm, order, isSending }) => {
+  if (!isOpen || !order) return null;
+
   if (!isOpen || !order) return null;
   return (
     <div className="fixed inset-0 z-70 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-in fade-in duration-200">
@@ -797,9 +853,10 @@ const CourierModal = ({ isOpen, onClose, onConfirm, order, isSending }) => {
             <button
               onClick={() => onConfirm(order.orderId)}
               disabled={isSending}
-              className="flex-1 py-2.5 bg-indigo-600 text-white rounded-lg hover:bg-indigo-500 font-bold transition-colors text-sm flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed"
+              className="flex-1 py-2.5 bg-green-600 hover:bg-green-500 text-white rounded-lg font-bold transition-colors text-sm disabled:opacity-50 flex justify-center items-center gap-2"
             >
-              {isSending ? <><Loader2 size={16} className="animate-spin" /> Sending...</> : <><Send size={16} /> Confirm Send</>}
+              {isSending ? <span className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></span> : <Send size={16} />}
+              {isSending ? "Sending..." : "Confirm & Send"}
             </button>
           </div>
         </div>
@@ -1021,6 +1078,7 @@ const OrderModal = ({
   onLocationChange,
   onCustomerInfoChange,
   onEditCourierIds,
+  onScheduleChange,
 }) => {
   const [isEditingPrice, setIsEditingPrice] = useState(false);
   const [tempPrice, setTempPrice] = useState(order?.totalValue || 0);
@@ -1035,6 +1093,7 @@ const OrderModal = ({
   const [customerName, setCustomerName] = useState(order?.customer?.name || order?.name || "");
   const [customerPhone, setCustomerPhone] = useState(order?.customer?.phone || order?.number || "");
   const [isEditingCustomer, setIsEditingCustomer] = useState(false);
+  const [scheduledDate, setScheduledDate] = useState(order?.scheduledDate || "");
 
   const updateAddressWithLocation = (currentAddress, newDistrict, newThana) => {
     if (!currentAddress) currentAddress = "";
@@ -1063,6 +1122,7 @@ const OrderModal = ({
     setThana(order?.thana || "");
     setCustomerName(order?.customer?.name || order?.name || "");
     setCustomerPhone(order?.customer?.phone || order?.number || "");
+    setScheduledDate(order?.scheduledDate || "");
   }, [order]);
   
   const handleSavePrice = () => {
@@ -1091,7 +1151,7 @@ const OrderModal = ({
               <div className="w-full">
                 <div className="flex flex-wrap items-center gap-2 md:gap-3 mb-1.5">
                   <h2 className="text-lg md:text-xl font-bold text-white tracking-tight break-words">Order #{order.orderId}</h2>
-                  <StatusBadge status={order.status} />
+                  <StatusBadge status={order.scheduledDate ? "Scheduled" : order.status} />
                   <div className="flex flex-wrap gap-2 items-center w-full sm:w-auto mt-1 sm:mt-0">
                     {(order.trackingCode || order.consignmentId) && (
                       <div 
@@ -1294,6 +1354,68 @@ const OrderModal = ({
                       </select>
                     </div>
                   </div>
+                </div>
+              </div>
+            </div>
+
+            {/* SCHEDULE ORDER CARD */}
+            <div className="bg-gray-800/40 backdrop-blur-sm rounded-xl md:rounded-2xl border border-gray-700/60 overflow-hidden shadow-lg mt-6 mb-6">
+              <div className="px-4 md:px-5 py-3 border-b border-gray-700/50 bg-gray-800/80 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Calendar size={16} className="text-purple-400 md:w-4 md:h-4 w-3.5 h-3.5" />
+                  <h3 className="text-xs md:text-sm font-semibold text-gray-200">Schedule Order</h3>
+                </div>
+              </div>
+              <div className="p-4 md:p-5 flex flex-col gap-4 md:gap-6">
+                <div>
+                  <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-3 flex items-center gap-1.5">
+                    <Clock size={12} /> Set Future Delivery Date
+                  </p>
+                  <div className="flex items-center gap-2">
+                    <div className="flex-1">
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <button className="w-full flex items-center justify-between bg-gray-900 border border-gray-600 rounded-lg px-4 py-3 text-sm text-gray-300 hover:text-white hover:border-gray-500 focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 transition-all shadow-sm font-medium">
+                            {scheduledDate ? format(new Date(scheduledDate), "PPP") : <span>Pick a date</span>}
+                            <Calendar size={16} className="text-gray-500" />
+                          </button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0 bg-gray-900 border-gray-700 text-white shadow-xl" align="start">
+                          <CalendarComponent
+                            mode="single"
+                            selected={scheduledDate ? new Date(scheduledDate) : undefined}
+                            onSelect={(date) => {
+                              const dateStr = date ? format(date, "yyyy-MM-dd") : "";
+                              setScheduledDate(dateStr);
+                              onScheduleChange(dateStr);
+                            }}
+                            disabled={(date) => {
+                              const today = new Date();
+                              today.setHours(0, 0, 0, 0);
+                              return date <= today;
+                            }}
+                            initialFocus
+                            className="bg-gray-900 text-white rounded-lg border border-gray-700"
+                          />
+                        </PopoverContent>
+                      </Popover>
+                    </div>
+                    {scheduledDate && (
+                      <button 
+                        onClick={() => {
+                          setScheduledDate("");
+                          onScheduleChange("");
+                        }}
+                        className="p-3 bg-red-500/10 hover:bg-red-500/20 text-red-400 rounded-lg border border-red-500/20 transition-colors flex-shrink-0"
+                        title="Clear Schedule"
+                      >
+                        <X size={18} />
+                      </button>
+                    )}
+                  </div>
+                  <p className="text-xs text-gray-400 mt-2">
+                    {scheduledDate ? "Order is scheduled to be shipped on this date." : "No schedule set. Select a date to delay shipping."}
+                  </p>
                 </div>
               </div>
             </div>
@@ -1606,6 +1728,9 @@ export default function App() {
   const [isSendingBulkCourier, setIsSendingBulkCourier] = useState(false);
   const [bulkOrdersCount, setBulkOrdersCount] = useState(0);
 
+  // Missing Address State
+  const [missingAddressState, setMissingAddressState] = useState({ isOpen: false, type: null, data: null });
+
   // In Review Order IDs Modal State
   const [isOrderIdsModalOpen, setIsOrderIdsModalOpen] = useState(false);
   const [orderIdsText, setOrderIdsText] = useState("");
@@ -1706,6 +1831,11 @@ export default function App() {
       if (order.status === "Processing" && order.note && order.note.trim() !== "") {
         counts["HasNote"]++;
       }
+      
+      // NEW: Scheduled orders
+      if (order.scheduledDate) {
+        counts["Scheduled"] = (counts["Scheduled"] || 0) + 1;
+      }
     });
     return counts;
   }, [orders, dateRange]);
@@ -1750,6 +1880,7 @@ export default function App() {
           consignmentId: order.consignmentId || null,
           courierStatus: order.courierStatus || "pending",
           courierNote: order.courierNote || null,
+          scheduledDate: order.scheduledDate || null,
         }));
         
         // Use functional state update to only replace if data changed (prevent unnecessary re-renders)
@@ -1883,8 +2014,12 @@ export default function App() {
 
   // --- COURIER INTEGRATION HANDLERS ---
   const handleOpenCourierModal = (order) => {
-    setCourierOrder(order);
-    setIsCourierModalOpen(true);
+    if (!order.district || !order.thana) {
+      setMissingAddressState({ isOpen: true, type: 'single', data: order });
+    } else {
+      setCourierOrder(order);
+      setIsCourierModalOpen(true);
+    }
   };
 
   const handleConfirmCourierSend = async (orderId) => {
@@ -1920,11 +2055,31 @@ export default function App() {
   const handleOpenBulkCourierModal = () => {
     // Only dispatch orders that do not already have a tracking code
     const eligibleOrders = filteredOrders.filter(o => !o.trackingCode && o.status !== "Fake" && o.status !== "Cancelled" && o.status !== "Abandoned");
-    setBulkOrdersCount(eligibleOrders.length);
-    if (eligibleOrders.length > 0) {
-       setIsBulkCourierModalOpen(true);
-    } else {
+    
+    if (eligibleOrders.length === 0) {
        alert("No eligible pending orders to send.");
+       return;
+    }
+
+    const missingCount = eligibleOrders.filter(o => !o.district || !o.thana).length;
+    if (missingCount > 0) {
+       setMissingAddressState({ isOpen: true, type: 'bulk', data: eligibleOrders });
+    } else {
+       setBulkOrdersCount(eligibleOrders.length);
+       setIsBulkCourierModalOpen(true);
+    }
+  };
+
+  const handleSkipAddressWarning = () => {
+    const { type, data } = missingAddressState;
+    setMissingAddressState({ isOpen: false, type: null, data: null });
+    
+    if (type === 'single') {
+      setCourierOrder(data);
+      setIsCourierModalOpen(true);
+    } else if (type === 'bulk') {
+      setBulkOrdersCount(data.length);
+      setIsBulkCourierModalOpen(true);
     }
   };
 
@@ -2071,6 +2226,29 @@ export default function App() {
       alert('Failed to revert orders. Please try again.');
     } finally {
       setIsReverting(false);
+      setTimeout(() => { activeRequestsRef.current = Math.max(0, activeRequestsRef.current - 1); }, 2000);
+    }
+  };
+
+  const handleScheduleChange = async (id, dateStr) => {
+    activeRequestsRef.current++;
+    // Optimistic update
+    setOrders((prev) =>
+      prev.map((o) => (o.id === id ? { ...o, scheduledDate: dateStr || null } : o))
+    );
+    if (selectedOrder?.id === id) {
+      setSelectedOrder((prev) => ({ ...prev, scheduledDate: dateStr || null }));
+    }
+    try {
+      await fetch(`/api/orders/${id}/schedule`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ scheduledDate: dateStr }),
+      });
+    } catch (e) {
+      console.error("Failed to update schedule date", e);
+      alert("Failed to save schedule date to server");
+    } finally {
       setTimeout(() => { activeRequestsRef.current = Math.max(0, activeRequestsRef.current - 1); }, 2000);
     }
   };
@@ -2258,6 +2436,7 @@ export default function App() {
       setTimeout(() => { activeRequestsRef.current = Math.max(0, activeRequestsRef.current - 1); }, 2000);
     }
   };
+
   const openNoteModal = (order) => {
     setNoteOrder(order);
     setIsNoteModalOpen(true);
@@ -2322,6 +2501,8 @@ export default function App() {
     } else if (statusFilter === "HasNote") {
       // Logic for Orders with Notes (ONLY Processing)
       filtered = filtered.filter((o) => o.status === "Processing" && o.note && o.note.trim() !== "");
+    } else if (statusFilter === "Scheduled") {
+      filtered = filtered.filter((o) => !!o.scheduledDate);
     } else if (statusFilter) {
       // Logic for standard status tabs
       filtered = filtered.filter((o) => o.status === statusFilter);
@@ -2335,6 +2516,11 @@ export default function App() {
   const totalPages = Math.ceil(filteredOrders.length / itemsPerPage);
   const startItem = (currentPage - 1) * itemsPerPage + 1;
   const endItem = Math.min(startItem + itemsPerPage - 1, filteredOrders.length);
+  const todayScheduleCount = useMemo(() => {
+    const todayStr = format(new Date(), "yyyy-MM-dd");
+    return orders.filter(o => o.scheduledDate && o.scheduledDate === todayStr).length;
+  }, [orders]);
+
   // --- UPDATED WIDGETS CONFIGURATION ---
   const statusWidgets = [
     {
@@ -2428,6 +2614,14 @@ export default function App() {
       bg: "bg-slate-500/10",
       border: "border-slate-500/20",
     },
+    {
+      label: "Scheduled",
+      key: "Scheduled",
+      icon: Calendar,
+      color: "text-purple-400",
+      bg: "bg-purple-500/10",
+      border: "border-purple-500/20",
+    },
   ];
   return (
     <div className="inter-font bg-gray-900 text-gray-100 min-h-screen p-4 md:p-8 relative">
@@ -2483,6 +2677,7 @@ export default function App() {
             setEditCourierOrder(selectedOrder);
             setIsEditCourierIdsOpen(true);
           }}
+          onScheduleChange={(val) => handleScheduleChange(selectedOrder.id, val)}
         />
       )}
       <header className="mb-6 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
@@ -2543,7 +2738,7 @@ export default function App() {
                   <div
                     key={w.key}
                     onClick={() => handleStatusWidgetClick(w.key)}
-                    className={`flex items-center gap-3 p-4 rounded-xl border cursor-pointer transition-all ${
+                    className={`relative flex items-center gap-3 p-4 rounded-xl border cursor-pointer transition-all ${
                       isActive
                         ? `${w.border} ${w.bg} ring-2 ring-white/20`
                         : `${w.border} ${w.bg} hover:border-white/50`
@@ -2565,6 +2760,11 @@ export default function App() {
                     {isActive && (
                       <div className="w-2 h-2 bg-white rounded-full"></div>
                     )}
+                    {w.key === "Scheduled" && todayScheduleCount > 0 && (
+                      <div className="absolute -top-2 -right-2 bg-red-600 text-white text-[10px] font-bold min-w-[20px] h-[20px] flex items-center justify-center rounded-full border-2 border-gray-900 shadow-lg shadow-red-900/50 z-10 px-1">
+                        {todayScheduleCount}
+                      </div>
+                    )}
                   </div>
                 );
               })}
@@ -2581,7 +2781,7 @@ export default function App() {
             <div
               key={w.key}
               onClick={() => handleStatusWidgetClick(w.key)}
-              className={`flex items-center gap-3 p-4 rounded-xl border cursor-pointer transition-all hover:scale-[1.02] ${
+              className={`relative flex items-center gap-3 p-4 rounded-xl border cursor-pointer transition-all hover:scale-[1.02] ${
                 isActive
                   ? `${w.border} ${w.bg} ring-2 ring-white/20`
                   : `${w.border} ${w.bg} hover:border-white/50`
@@ -2602,6 +2802,11 @@ export default function App() {
               </div>
               {isActive && (
                 <div className="w-2 h-2 bg-white rounded-full"></div>
+              )}
+              {w.key === "Scheduled" && todayScheduleCount > 0 && (
+                <div className="absolute -top-2.5 -right-2 bg-red-600 text-white text-[11px] font-bold min-w-[22px] h-[22px] flex items-center justify-center rounded-full border-2 border-gray-900 shadow-lg shadow-red-900/50 z-10 px-1.5">
+                  {todayScheduleCount}
+                </div>
               )}
             </div>
           );
@@ -2919,7 +3124,7 @@ export default function App() {
 
                       {/* STATUS COLUMN */}
                       <td className="whitespace-nowrap py-4 px-4 text-sm">
-                        <StatusBadge status={order.status} />
+                        <StatusBadge status={order.scheduledDate ? "Scheduled" : order.status} />
                       </td>
 
                       {/* CALL STATUS COLUMN */}
@@ -3045,7 +3250,7 @@ export default function App() {
                             onClick={(e) => e.stopPropagation()}
                           >
                             {/* Status badge */}
-                            <StatusBadge status={order.status} />
+                            <StatusBadge status={order.scheduledDate ? "Scheduled" : order.status} />
 
                             {/* Steadfast badge */}
                             {order.trackingCode && (
@@ -3123,6 +3328,11 @@ export default function App() {
           </div>
         </div>
       )}
+      <MissingAddressModal
+        isOpen={missingAddressState.isOpen}
+        onClose={() => setMissingAddressState({ isOpen: false, type: null, data: null })}
+        onSkip={handleSkipAddressWarning}
+      />
       <CourierModal
         isOpen={isCourierModalOpen}
         onClose={() => setIsCourierModalOpen(false)}
@@ -3146,11 +3356,10 @@ export default function App() {
                   Are you sure you want to send <strong className="text-white bg-gray-800 px-1 py-0.5 rounded border border-gray-700">{bulkOrdersCount}</strong> orders to the Steadfast Courier right now?
                   <br />
                   <br />
-                  <span className="text-xs text-red-400">
-                    This will dispatch the orders and change their status to "Shipped".        
-                  </span>
+                  This action cannot be undone.
                 </p>
-                <div className="flex gap-3 w-full mt-4">
+
+                <div className="flex gap-3 w-full mt-2">
                   <button
                     onClick={() => setIsBulkCourierModalOpen(false)}
                     disabled={isSendingBulkCourier}
@@ -3160,10 +3369,11 @@ export default function App() {
                   </button>
                   <button
                     onClick={handleConfirmBulkCourierSend}
-                    disabled={isSendingBulkCourier || bulkOrdersCount === 0}
-                    className="flex-1 px-4 py-2.5 bg-green-600 hover:bg-green-500 text-white text-sm font-bold rounded-lg transition-colors flex justify-center items-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed"
+                    disabled={isSendingBulkCourier}
+                    className="flex-1 px-4 py-2.5 bg-green-500 hover:bg-green-400 text-white text-sm font-bold rounded-lg shadow-lg shadow-green-500/20 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
                   >
-                    {isSendingBulkCourier ? <><Loader2 size={16} className="animate-spin" /> Dispatching...</> : 'Yes, Dispatch'}
+                    {isSendingBulkCourier ? <span className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></span> : <Send size={16} />}
+                    {isSendingBulkCourier ? "Sending..." : "Yes, Dispatch"}
                   </button>
                 </div>
              </div>

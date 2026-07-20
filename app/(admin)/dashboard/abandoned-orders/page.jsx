@@ -641,10 +641,11 @@ export default function PendingOrdersPage() {
            </div>
         </div>
 
-        <div className="bg-[#111624] border border-gray-800 rounded-2xl overflow-hidden shadow-2xl">
-           <div className="overflow-x-hidden md:overflow-x-auto custom-scrollbar">
-             <table className="w-full text-left whitespace-nowrap block md:table">
-               <thead className="hidden md:table-header-group">
+        {/* DESKTOP TABLE VIEW */}
+        <div className="hidden md:block bg-[#111624] border border-gray-800 rounded-2xl overflow-hidden shadow-2xl">
+           <div className="overflow-x-auto custom-scrollbar">
+             <table className="w-full text-left whitespace-nowrap">
+               <thead>
                  <tr className="bg-[#1A2235] text-gray-400 border-b border-gray-800 text-[10px] font-bold uppercase tracking-widest">
                    <th className="py-4 px-6">Order Info</th>
                    <th className="py-4 px-6">Time</th>
@@ -655,192 +656,314 @@ export default function PendingOrdersPage() {
                    <th className="py-4 px-6 text-right">Action</th>
                  </tr>
                </thead>
-               <tbody className="divide-y divide-gray-800/60 block md:table-row-group w-full">
+               <tbody className="divide-y divide-gray-800/60">
                  {loading ? (
-                   <tr><td colSpan="7" className="py-16 text-center text-gray-500 font-medium flex items-center justify-center gap-3"><span className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-500"></span> Loading unsubmitted orders...</td></tr>
+                   <tr><td colSpan="7" className="py-16 text-center text-gray-500">Loading...</td></tr>
                  ) : paginatedData.length === 0 ? (
                    <tr><td colSpan="7" className="py-16 text-center text-gray-500">No abandoned carts found.</td></tr>
                  ) : (
                    paginatedData.map((order) => {
-                     const item = order.items?.[0] || {};
                      const hasRealOrder = !!order.realOrder;
                      return (
-                       <React.Fragment key={order._id}>
-                         {/* DESKTOP ROW */}
-                         <tr className={`hidden md:table-row group transition-all duration-200 ${hasRealOrder ? 'bg-[#151c2e] hover:bg-[#1a233a] opacity-80' : 'bg-transparent hover:bg-gray-800/40'}`}>
-                           {/* ORDER INFO */}
-                           <td className="py-4 px-6">
-                             <div className="flex items-center gap-4">
-                                <div className="flex flex-col gap-1.5 min-w-[120px]">
-                                  <div className="flex items-center gap-2">
-                                    <span className="text-[13px] font-bold text-white group-hover:text-blue-400 transition-colors truncate max-w-[160px]">{order.customer.name}</span>
-                                  </div>
-                                  <div className="flex items-center gap-2">
-                                    <span className="text-xs text-gray-400 font-mono">{order.customer.phone}</span>
-                                  </div>
-                                </div>
-                                {hasRealOrder && (
-                                  <div className="hidden lg:flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-green-500/10 border border-green-500/20 text-green-400 text-[10px] font-bold uppercase tracking-wider">
-                                    <CheckCircle size={12} />
-                                    Already Ordered ({order.realOrder.status})
-                                  </div>
-                                )}
+                       <tr key={order._id} className={`group transition-all duration-200 ${hasRealOrder ? 'bg-[#151c2e] hover:bg-[#1a233a] opacity-80' : 'bg-transparent hover:bg-gray-800/40'}`}>
+                         <td className="py-4 px-6">
+                           <div className="flex items-center gap-4">
+                             <div className="flex flex-col gap-1.5 min-w-[120px]">
+                               <span className="text-[13px] font-bold text-white group-hover:text-blue-400 truncate max-w-[160px]">{order.customer.name}</span>
+                               <span className="text-xs text-gray-400 font-mono">{order.customer.phone}</span>
                              </div>
-                           </td>
-                           
-                           {/* TIME */}
-                           <td className="py-4 px-6">
-                              <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded bg-gray-800/50 text-gray-400 text-[11px] font-medium border border-gray-700/50">
-                                <Clock size={12} /> {formatTimeAgo(order.createdAt)}
-                              </div>
-                           </td>
-                           
-                           {/* GEOGRAPHY / CART */}
-                           <td className="py-4 px-6">
-                              <div className="flex flex-col gap-1.5">
-                                 <div className="flex items-center gap-2">
-                                   <span className="text-sm text-gray-200 font-bold">{order.totalValue ? `${order.totalValue} ৳` : 'N/A'}</span>
-                                   <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-orange-500/10 text-orange-400">{order.shipping || 'Standard'}</span>
-                                 </div>
-                                 {order.address && order.address !== 'N/A' && (
-                                    <div className="flex items-center gap-1.5 text-xs text-gray-400 max-w-[200px] truncate" title={order.address}>
-                                       <MapPin size={12} className="shrink-0 text-gray-500" />
-                                       <span className="truncate">{order.address}</span>
-                                    </div>
-                                 )}
-                              </div>
-                           </td>
-
-                           {/* COURIER HISTORY */}
-                           <td className="py-4 px-6">
-                             <SteadfastPill phone={order.customer.phone} />
-                           </td>
-                           
-                           {/* STATUS */}
-                           <td className="py-4 px-6">
-                              {hasRealOrder ? (
-                                 <span className="text-xs text-gray-500 font-medium italic">Handled</span>
-                              ) : (
-                                 <StatusDropdown 
-                                     status={order.status} 
-                                     onStatusChange={(newStatus) => handleStatusUpdate(order._id, newStatus)} 
-                                 />
-                              )}
-                           </td>
-                           
-                           {/* CALL */}
-                           <td className="py-4 px-6">
-                              {hasRealOrder ? (
-                                 <span className="text-xs text-gray-500 font-medium italic">N/A</span>
-                              ) : (
-                                 <CallStatusDropdown 
-                                     currentStatus={order.callStatus} 
-                                     onStatusChange={(newCallStatus) => handleCallStatusUpdate(order._id, newCallStatus)} 
-                                 />
-                              )}
-                           </td>
-                           
-                           {/* ACTION */}
-                           <td className="py-4 px-6 text-right">
-                              <button 
-                                onClick={() => setSelectedOrder(order)}
-                                className="inline-flex items-center gap-2 px-3 py-1.5 bg-[#1F2937] hover:bg-[#374151] border border-gray-700 rounded-md text-[11px] font-bold text-white transition-all shadow-sm"
-                              >
-                                <Eye size={14} /> View
-                              </button>
-                           </td>
-                         </tr>
-
-                         {/* MOBILE CARD ROW */}
-                         <tr className="md:hidden block mb-4 w-full">
-                           <td colSpan="7" className="block p-0 w-full outline-none">
-                             <div className={`flex flex-col gap-0 rounded-2xl border ${hasRealOrder ? 'bg-green-950/20 border-green-500/20 shadow-lg shadow-green-900/10' : 'bg-gray-800/90 border-gray-700/50 shadow-md'} overflow-hidden`}>
-                               {/* Card Header */}
-                               <div className="px-4 pt-4 pb-3 flex items-start gap-3">
-                                 <div className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold shrink-0 ${hasRealOrder ? 'bg-green-500/20 text-green-400 border border-green-500/30' : 'bg-gray-700 text-gray-300 border border-gray-600'}`}>
-                                   {(order.customer?.name || 'G').charAt(0).toUpperCase()}
-                                 </div>
-                                 <div className="flex-1 min-w-0">
-                                   <div className="flex items-center gap-2 flex-wrap">
-                                     <span className="text-white font-semibold text-sm leading-tight truncate">{order.customer?.name || 'N/A'}</span>
-                                     {hasRealOrder && (
-                                       <span className="inline-flex items-center gap-1 text-[9px] font-bold px-1.5 py-0.5 rounded-full shrink-0 text-green-300 bg-green-500/20 border border-green-500/30">
-                                         <CheckCircle size={8} /> Ordered
-                                       </span>
-                                     )}
-                                   </div>
-                                   <div className="flex items-center gap-1.5 mt-1 text-xs text-blue-400 font-medium">
-                                     <Phone size={11} className="shrink-0" />
-                                     <span>{order.customer?.phone || 'N/A'}</span>
-                                   </div>
-                                 </div>
-                                 <div className="flex flex-col items-end gap-2 shrink-0">
-                                   <div className="flex items-center gap-1 text-[10px] text-gray-500">
-                                     <Clock size={10} /> {formatTimeAgo(order.createdAt)}
-                                   </div>
-                                   <button 
-                                     onClick={() => setSelectedOrder(order)}
-                                     className="p-1.5 rounded-lg bg-gray-700/50 text-gray-300 hover:bg-blue-600 hover:text-white transition-colors border border-gray-600"
-                                   >
-                                     <Eye size={14} />
-                                   </button>
-                                 </div>
+                             {hasRealOrder && (
+                               <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-green-500/10 border border-green-500/20 text-green-400 text-[10px] font-bold uppercase tracking-wider">
+                                 <CheckCircle size={12} /> Already Ordered ({order.realOrder.status})
                                </div>
-
-                               {/* Card Body */}
-                               <div className="px-4 py-3 bg-gray-900/50 flex flex-col gap-3">
-                                 <div className="flex items-center justify-between text-sm">
-                                   <span className="font-bold text-white">{order.totalValue ? `${order.totalValue} ৳` : 'N/A'}</span>
-                                   <SteadfastPill phone={order.customer.phone} />
-                                 </div>
-                                 <div className="flex items-center justify-between gap-2 border-t border-gray-800/50 pt-3">
-                                   <div className="flex-1 min-w-0">
-                                      {hasRealOrder ? (
-                                         <span className="text-xs text-gray-500 font-medium italic">Handled</span>
-                                      ) : (
-                                         <CallStatusDropdown 
-                                             currentStatus={order.callStatus} 
-                                             onStatusChange={(newCallStatus) => handleCallStatusUpdate(order._id, newCallStatus)} 
-                                         />
-                                      )}
-                                   </div>
-                                   <div className="flex-1 min-w-0 text-right">
-                                      {hasRealOrder ? (
-                                         <span className="text-xs text-gray-500 font-medium italic">Handled</span>
-                                      ) : (
-                                         <StatusDropdown 
-                                             status={order.status} 
-                                             onStatusChange={(newStatus) => handleStatusUpdate(order._id, newStatus)} 
-                                         />
-                                      )}
-                                   </div>
-                                 </div>
-                               </div>
+                             )}
+                           </div>
+                         </td>
+                         <td className="py-4 px-6">
+                           <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded bg-gray-800/50 text-gray-400 text-[11px] font-medium border border-gray-700/50">
+                             <Clock size={12} /> {formatTimeAgo(order.createdAt)}
+                           </div>
+                         </td>
+                         <td className="py-4 px-6">
+                           <div className="flex flex-col gap-1.5">
+                             <div className="flex items-center gap-2">
+                               <span className="text-sm text-gray-200 font-bold">{order.totalValue ? `${order.totalValue} ৳` : 'N/A'}</span>
+                               <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-orange-500/10 text-orange-400">{order.shipping || 'Standard'}</span>
                              </div>
-                           </td>
-                         </tr>
-                       </React.Fragment>
+                             {order.address && order.address !== 'N/A' && (
+                               <div className="flex items-center gap-1.5 text-xs text-gray-400 max-w-[200px] truncate" title={order.address}>
+                                 <MapPin size={12} className="shrink-0 text-gray-500" />
+                                 <span className="truncate">{order.address}</span>
+                               </div>
+                             )}
+                           </div>
+                         </td>
+                         <td className="py-4 px-6">
+                           <SteadfastPill phone={order.customer.phone} />
+                         </td>
+                         <td className="py-4 px-6">
+                           {hasRealOrder ? (
+                             <span className="text-xs text-gray-500 font-medium italic">Handled</span>
+                           ) : (
+                             <StatusDropdown status={order.status} onStatusChange={(s) => handleStatusUpdate(order._id, s)} />
+                           )}
+                         </td>
+                         <td className="py-4 px-6">
+                           {hasRealOrder ? (
+                             <span className="text-xs text-gray-500 font-medium italic">N/A</span>
+                           ) : (
+                             <CallStatusDropdown currentStatus={order.callStatus} onStatusChange={(s) => handleCallStatusUpdate(order._id, s)} />
+                           )}
+                         </td>
+                         <td className="py-4 px-6 text-right">
+                           <button onClick={() => setSelectedOrder(order)} className="inline-flex items-center gap-2 px-3 py-1.5 bg-[#1F2937] hover:bg-[#374151] border border-gray-700 rounded-md text-[11px] font-bold text-white transition-all shadow-sm">
+                             <Eye size={14} /> View
+                           </button>
+                         </td>
+                       </tr>
                      );
                    })
                  )}
                </tbody>
              </table>
            </div>
-           
-           {/* Pagination */}
            {totalPages > 1 && (
-            <div className="px-6 py-4 border-t border-gray-800 bg-[#151c2e] flex items-center justify-between">
-                <span className="text-xs text-gray-400 font-medium">Showing page <span className="text-white">{currentPage}</span> of <span className="text-white">{totalPages}</span></span>
-                <div className="flex gap-2">
-                    <button disabled={currentPage === 1} onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                    className="p-2 rounded-lg bg-gray-800/80 border border-gray-700 text-gray-400 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-gray-700 hover:text-white transition-colors">
-                    <ChevronLeft size={16} /></button>
-                    <button disabled={currentPage === totalPages} onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                    className="p-2 rounded-lg bg-gray-800/80 border border-gray-700 text-gray-400 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-gray-700 hover:text-white transition-colors">
-                    <ChevronRight size={16} /></button>
-                </div>
-            </div>
+             <div className="px-6 py-4 border-t border-gray-800 bg-[#151c2e] flex items-center justify-between">
+               <span className="text-xs text-gray-400 font-medium">Page <span className="text-white">{currentPage}</span> of <span className="text-white">{totalPages}</span></span>
+               <div className="flex gap-2">
+                 <button disabled={currentPage === 1} onClick={() => setCurrentPage(p => Math.max(1, p - 1))} className="p-2 rounded-lg bg-gray-800/80 border border-gray-700 text-gray-400 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-gray-700 hover:text-white transition-colors"><ChevronLeft size={16} /></button>
+                 <button disabled={currentPage === totalPages} onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} className="p-2 rounded-lg bg-gray-800/80 border border-gray-700 text-gray-400 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-gray-700 hover:text-white transition-colors"><ChevronRight size={16} /></button>
+               </div>
+             </div>
            )}
+        </div>
+
+        {/* MOBILE CARD LIST */}
+        <div className="md:hidden flex flex-col gap-3">
+          {loading ? (
+            <div className="py-16 text-center text-gray-500 flex flex-col items-center gap-3">
+              <span className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500"></span>
+              <span className="text-sm">Loading orders...</span>
+            </div>
+          ) : paginatedData.length === 0 ? (
+            <div className="py-16 text-center text-gray-500 bg-gray-900/50 rounded-2xl border border-gray-800">
+              <ShoppingBag size={32} className="mx-auto mb-3 opacity-30" />
+              <p className="text-sm">No abandoned carts found.</p>
+            </div>
+          ) : (
+            paginatedData.map((order) => {
+              const hasRealOrder = !!order.realOrder;
+              return (
+                <div
+                  key={order._id}
+                  className={`rounded-2xl border overflow-hidden transition-all active:scale-[0.99] ${
+                    hasRealOrder
+                      ? 'bg-gradient-to-br from-green-950/40 to-[#111827] border-green-500/30 shadow-lg shadow-green-900/10'
+                      : 'bg-gradient-to-br from-[#1a2236] to-[#111827] border-gray-700/60 shadow-md'
+                  }`}
+                >
+                  {/* ── TOP BANNER: Already Ordered ── */}
+                  {hasRealOrder && (() => {
+                    const s = order.realOrder.status;
+                    const statusPill = {
+                      Cancelled:  { bg: 'bg-red-600',     icon: <XCircle size={11} />,   label: 'Cancelled'  },
+                      Delivered:  { bg: 'bg-green-600',   icon: <CheckCircle size={11}/>, label: 'Delivered'  },
+                      Shipped:    { bg: 'bg-purple-600',  icon: <Truck size={11} />,      label: 'Shipped'    },
+                      Returned:   { bg: 'bg-orange-600',  icon: <RotateCcw size={11} />,  label: 'Returned'   },
+                      Processing: { bg: 'bg-blue-600',    icon: <CircleDot size={11} />,  label: 'Processing' },
+                      Fake:       { bg: 'bg-gray-600',    icon: <XCircle size={11} />,    label: 'Fake'       },
+                    }[s] || { bg: 'bg-gray-600', icon: <CircleDot size={11} />, label: s };
+                    return (
+                      <div className="px-4 pt-3 pb-2 bg-green-500/10 border-b border-green-500/20 flex items-center gap-2">
+                        <CheckCircle size={13} className="text-green-400 shrink-0" />
+                        <span className="text-[11px] font-bold text-green-400 uppercase tracking-wider">Already Ordered —</span>
+                        <span className={`inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-full text-white ${statusPill.bg}`}>
+                          {statusPill.icon}
+                          {statusPill.label}
+                        </span>
+                      </div>
+                    );
+                  })()}
+
+
+                  {/* ── CARD HEADER ── */}
+                  <div className="px-4 pt-4 pb-3 flex items-start gap-3">
+                    {/* Avatar */}
+                    <div className={`w-11 h-11 rounded-full flex items-center justify-center text-base font-black shrink-0 ${
+                      hasRealOrder
+                        ? 'bg-green-500/20 text-green-300 border-2 border-green-500/40'
+                        : (order.customer?.name && order.customer.name !== 'Guest')
+                          ? 'bg-gradient-to-br from-blue-600 to-indigo-700 text-white border-2 border-blue-500/40 shadow-md shadow-blue-900/30'
+                          : 'bg-gray-700/80 text-gray-400 border-2 border-gray-600/50'
+                    }`}>
+                      {(order.customer?.name && order.customer.name !== 'Guest')
+                        ? order.customer.name.trim().charAt(0).toUpperCase()
+                        : <User size={18} />
+                      }
+                    </div>
+
+                    {/* Name + Phone */}
+                    <div className="flex-1 min-w-0">
+                      <p className="text-white font-bold text-[15px] leading-tight">
+                        {(order.customer?.name && order.customer.name !== 'Guest')
+                          ? order.customer.name
+                          : <span className="text-gray-500 font-medium italic text-sm">Unknown Guest</span>
+                        }
+                      </p>
+                      {order.customer?.phone && order.customer.phone !== 'N/A' ? (
+                        <a
+                          href={`tel:${order.customer.phone}`}
+                          className="inline-flex items-center gap-1.5 mt-1 text-[13px] text-blue-400 font-semibold hover:text-blue-300 transition-colors"
+                        >
+                          <Phone size={12} className="shrink-0" />
+                          {order.customer.phone}
+                        </a>
+                      ) : (
+                        <span className="inline-flex items-center gap-1.5 mt-1 text-xs text-gray-600 italic">
+                          <Phone size={11} /> No phone number
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Time + View button */}
+                    <div className="flex flex-col items-end gap-2 shrink-0">
+                      <div className="flex items-center gap-1 text-[11px] text-gray-500 bg-gray-800/70 rounded-full px-2 py-0.5 border border-gray-700/50">
+                        <Clock size={10} />
+                        <span>{formatTimeAgo(order.createdAt)}</span>
+                      </div>
+                      <button
+                        onClick={() => setSelectedOrder(order)}
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-blue-600/20 text-blue-400 hover:bg-blue-600 hover:text-white transition-all border border-blue-500/30 text-[11px] font-bold"
+                      >
+                        <Eye size={13} /> View
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* ── DIVIDER ── */}
+                  <div className="mx-4 h-px bg-gray-700/40" />
+
+                  {/* ── CART INFO: Amount + Steadfast ── */}
+                  <div className="px-4 py-3 flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      {order.totalValue ? (
+                        <span className="text-white font-black text-lg">{order.totalValue} ৳</span>
+                      ) : (
+                        <span className="text-gray-500 text-sm font-medium italic">No price</span>
+                      )}
+                      {order.shipping && (
+                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-orange-500/15 text-orange-400 border border-orange-500/20">
+                          {order.shipping}
+                        </span>
+                      )}
+                    </div>
+                    <SteadfastPill phone={order.customer?.phone} />
+                  </div>
+
+                  {/* ── ADDRESS (conditional) ── */}
+                  {order.address && order.address !== 'N/A' && (
+                    <div className="px-4 pb-3">
+                      <div className="flex items-start gap-2 text-[11px] text-gray-400 bg-gray-800/50 rounded-xl px-3 py-2 border border-gray-700/40">
+                        <MapPin size={11} className="shrink-0 text-gray-500 mt-0.5" />
+                        <span className="leading-relaxed line-clamp-2">{order.address}</span>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* ── STATUS CONTROLS ── */}
+                  <div className="px-4 pb-3 grid grid-cols-2 gap-2">
+                    <div className="flex flex-col gap-1">
+                      <span className="text-[9px] text-gray-500 font-bold uppercase tracking-wider pl-1">Call Status</span>
+                      {hasRealOrder ? (
+                        <span className="text-xs text-gray-500 italic px-1">Handled</span>
+                      ) : (
+                        <div className="relative">
+                          <select
+                            value={order.callStatus || 'Pending'}
+                            onChange={(e) => handleCallStatusUpdate(order._id, e.target.value)}
+                            className={`appearance-none w-full rounded-xl border py-2.5 pl-3 pr-7 text-xs font-bold focus:outline-none cursor-pointer transition-all ${
+                              order.callStatus === 'Confirmed' ? 'border-green-500/50 bg-green-500/15 text-green-400' :
+                              order.callStatus === 'No Answer' ? 'border-red-500/50 bg-red-500/15 text-red-400' :
+                              'border-yellow-500/50 bg-yellow-500/15 text-yellow-400'
+                            }`}
+                          >
+                            {CALL_OPTIONS.map(o => <option key={o.value} value={o.value} className="bg-gray-900 text-white">{o.label}</option>)}
+                          </select>
+                          <ChevronDown size={11} className="absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none opacity-60" />
+                        </div>
+                      )}
+                    </div>
+                    <div className="flex flex-col gap-1">
+                      <span className="text-[9px] text-gray-500 font-bold uppercase tracking-wider pl-1">Order Status</span>
+                      {hasRealOrder ? (
+                        <span className="text-xs text-gray-500 italic px-1">Handled</span>
+                      ) : (
+                        <div className="relative">
+                          <select
+                            value={order.status || 'Processing'}
+                            onChange={(e) => handleStatusUpdate(order._id, e.target.value)}
+                            className={`appearance-none w-full rounded-xl border py-2.5 pl-3 pr-7 text-xs font-bold focus:outline-none cursor-pointer transition-all ${
+                              order.status === 'Processing' ? 'border-blue-500/50 bg-blue-500/15 text-blue-400' :
+                              order.status === 'Cancelled' ? 'border-red-500/50 bg-red-500/15 text-red-400' :
+                              order.status === 'Fake' ? 'border-orange-500/50 bg-orange-500/15 text-orange-400' :
+                              'border-gray-500/50 bg-gray-500/15 text-gray-400'
+                            }`}
+                          >
+                            <option value="Processing" className="bg-gray-900 text-white">Processing</option>
+                            <option value="Cancelled" className="bg-gray-900 text-white">Cancel</option>
+                            <option value="Fake" className="bg-gray-900 text-white">Fake</option>
+                            <option value="Duplicate" className="bg-gray-900 text-white">Duplicate</option>
+                          </select>
+                          <ChevronDown size={11} className="absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none opacity-60" />
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* ── QUICK ACTION BUTTONS ── */}
+                  {!hasRealOrder && order.customer?.phone && order.customer.phone !== 'N/A' && (
+                    <div className="px-4 pb-4 flex gap-2">
+                      <a
+                        href={`tel:${order.customer.phone}`}
+                        className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl bg-green-600/20 text-green-400 border border-green-500/30 text-xs font-bold hover:bg-green-600 hover:text-white transition-all active:scale-[0.97]"
+                      >
+                        <PhoneCall size={14} /> Call
+                      </a>
+                      <a
+                        href={`https://wa.me/${order.customer.phone?.replace(/[^0-9]/g, '')}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl bg-emerald-700/20 text-emerald-400 border border-emerald-500/30 text-xs font-bold hover:bg-emerald-600 hover:text-white transition-all active:scale-[0.97]"
+                      >
+                        <Share2 size={14} /> WhatsApp
+                      </a>
+                      <button
+                        onClick={() => setSelectedOrder(order)}
+                        className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl bg-indigo-600/20 text-indigo-400 border border-indigo-500/30 text-xs font-bold hover:bg-indigo-600 hover:text-white transition-all active:scale-[0.97]"
+                      >
+                        <Eye size={14} /> Detail
+                      </button>
+                    </div>
+                  )}
+                </div>
+              );
+            })
+          )}
+
+          {/* Mobile Pagination */}
+          {totalPages > 1 && (
+            <div className="flex items-center justify-between py-3 px-1">
+              <span className="text-xs text-gray-400">Page <span className="text-white font-bold">{currentPage}</span> of <span className="text-white font-bold">{totalPages}</span></span>
+              <div className="flex gap-2">
+                <button disabled={currentPage === 1} onClick={() => setCurrentPage(p => Math.max(1, p - 1))} className="px-4 py-2 rounded-xl bg-gray-800 border border-gray-700 text-gray-400 disabled:opacity-40 text-sm font-medium hover:bg-gray-700 hover:text-white transition-colors flex items-center gap-1">
+                  <ChevronLeft size={15} /> Prev
+                </button>
+                <button disabled={currentPage === totalPages} onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} className="px-4 py-2 rounded-xl bg-gray-800 border border-gray-700 text-gray-400 disabled:opacity-40 text-sm font-medium hover:bg-gray-700 hover:text-white transition-colors flex items-center gap-1">
+                  Next <ChevronRight size={15} />
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>

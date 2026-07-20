@@ -1,0 +1,55 @@
+"use client"
+import React, { useState, useEffect } from 'react';
+
+const StickyOrderButton = () => {
+  const [isVisible, setIsVisible] = useState(false);
+  const [hasMounted, setHasMounted] = useState(false);
+
+  useEffect(() => {
+    setHasMounted(true);
+    const orderSection = document.getElementById('order');
+    
+    if (!orderSection) {
+      setIsVisible(true);
+      return;
+    }
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const [entry] = entries;
+        setIsVisible(!entry.isIntersecting);
+      },
+      {
+        root: null,
+        threshold: 0,
+        // Start hiding when order section is within 100px of viewport
+        rootMargin: "100px 0px 0px 0px"
+      }
+    );
+
+    observer.observe(orderSection);
+
+    return () => {
+      if (orderSection) observer.unobserve(orderSection);
+    };
+  }, []);
+
+  if (!hasMounted) return null;
+
+  return (
+    <div 
+      className={`fixed bottom-4 left-0 right-0 z-[99] flex justify-center pointer-events-none transition-all duration-300 ${
+        isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-10"
+      }`}
+    >
+      <a 
+        href="#order"
+        className="pointer-events-auto w-[90%] max-w-sm bg-[#ff6b00] hover:bg-[#e66000] text-white font-extrabold text-center py-4 px-8 rounded-full text-2xl shadow-md ring-4 ring-[#ff6b00]/20 transition-colors"
+      >
+        অর্ডার করুন
+      </a>
+    </div>
+  );
+};
+
+export default StickyOrderButton;

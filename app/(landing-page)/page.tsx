@@ -1,5 +1,6 @@
 import HeroSection from "./hero/page";
 import HeaderSection from "./header/page"
+import StickyOrderButton from "@/components/StickyOrderButton";
 
 export default function Home() {
   return (
@@ -10,6 +11,7 @@ export default function Home() {
 
       <HeaderSection />
       
+      <StickyOrderButton />
     </main>
   </div>
   );

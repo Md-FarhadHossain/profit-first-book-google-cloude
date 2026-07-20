@@ -473,6 +473,7 @@ const HeroSection = () => {
 
   // --- NORMAL WEBSITE RENDER ---
   return (
+    <>
     <section id="order" name="order" ref={sectionRef} className="bg-gray-100 px-2 shadow-2xl border relative">
       
       {showDuplicateModal && (
@@ -657,6 +658,39 @@ const HeroSection = () => {
         </div>
       </div>
     </section>
+
+    {/* Contact Section at the very bottom */}
+    <section className="bg-slate-50 py-10 md:py-16 border-t border-slate-200 mt-10">
+      <div className="container mx-auto px-4 text-center">
+        <h3 className="text-xl md:text-2xl font-bold text-slate-800 mb-2">
+          বইটি সম্পর্কে যেকোনো প্রয়োজনে যোগাযোগ করুন
+        </h3>
+        <p className="text-slate-500 mb-8">আমাদের সাপোর্ট টিম আপনাকে সাহায্য করার জন্য প্রস্তুত</p>
+        
+        <div className="flex flex-col sm:flex-row items-center justify-center gap-4 max-w-lg mx-auto">
+          {/* Direct Call Button */}
+          <a 
+            href="tel:01725755220" 
+            className="flex items-center justify-center gap-2 w-full sm:w-auto bg-white border-2 border-[#ff6b00] text-[#ff6b00] hover:bg-[#ff6b00] hover:text-white py-3.5 px-6 rounded-xl text-lg font-bold shadow-sm hover:shadow-md transition-all duration-300 group"
+          >
+            <i className="fas fa-phone-alt group-hover:animate-bounce"></i>
+            01725755220
+          </a>
+          
+          {/* WhatsApp Button */}
+          <a 
+            href="https://wa.me/8801725755220" 
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center justify-center gap-2 w-full sm:w-auto bg-[#25D366] text-white hover:bg-[#1ebe57] py-3.5 px-6 rounded-xl text-lg font-bold shadow-md hover:shadow-lg transition-all duration-300"
+          >
+            <i className="fab fa-whatsapp text-xl"></i>
+            WhatsApp
+          </a>
+        </div>
+      </div>
+    </section>
+    </>
   );
 };
 export default HeroSection;

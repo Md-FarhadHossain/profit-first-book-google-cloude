@@ -14,6 +14,7 @@ export default function HeroSection() {
   return (
     <div className="w-full min-h-screen bg-white text-[#495057] font-hind leading-relaxed overflow-x-hidden">
       
+
       {/* Custom Styles for Animation */}
       <style>{`
         @keyframes pulse-orange {
@@ -71,7 +72,7 @@ export default function HeroSection() {
                 </div>
                 <div className="h-4 w-px bg-gray-300 mx-1"></div>
                 <p className="font-semibold text-[#856404] text-sm lg:text-base m-0">
-                  <strong>4.8</strong> (১,৭০০+ রিভিউ)
+                  <strong>4.8</strong> (<span className='font-bold'>১</span>,৭০০+ রিভিউ)
                 </p>
               </div>
 
@@ -129,6 +130,38 @@ export default function HeroSection() {
           </div>
         </div>
       </header>
+
+      {/* Contact Section */}
+      <section className="bg-slate-50 py-10 md:py-16 border-t border-slate-200">
+        <div className="container mx-auto px-4 text-center">
+          <h3 className="text-xl md:text-2xl font-bold text-slate-800 mb-2">
+            বইটি সম্পর্কে যেকোনো প্রয়োজনে যোগাযোগ করুন
+          </h3>
+          <p className="text-slate-500 mb-8">আমাদের সাপোর্ট টিম আপনাকে সাহায্য করার জন্য প্রস্তুত</p>
+          
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-4 max-w-lg mx-auto">
+            {/* Direct Call Button */}
+            <a 
+              href="tel:01725755220" 
+              className="flex items-center justify-center gap-2 w-full sm:w-auto bg-white border-2 border-[#ff6b00] text-[#ff6b00] hover:bg-[#ff6b00] hover:text-white py-3.5 px-6 rounded-xl text-lg font-bold shadow-sm hover:shadow-md transition-all duration-300 group"
+            >
+              <i className="fas fa-phone-alt group-hover:animate-bounce"></i>
+              01725755220
+            </a>
+            
+            {/* WhatsApp Button */}
+            <a 
+              href="https://wa.me/8801725755220" 
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center justify-center gap-2 w-full sm:w-auto bg-[#25D366] text-white hover:bg-[#1ebe57] py-3.5 px-6 rounded-xl text-lg font-bold shadow-md hover:shadow-lg transition-all duration-300"
+            >
+              <i className="fab fa-whatsapp text-xl"></i>
+              WhatsApp
+            </a>
+          </div>
+        </div>
+      </section>
     </div>
   );
 }

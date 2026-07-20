@@ -48,7 +48,7 @@ const BookInfo = () => {
 
         <div className="my-4">
           <h1 className="text-4xl mb-4">বইটির বৈশিষ্ট:</h1>
-          <div className="flex justify-center items-start">
+          <div className="flex justify-center items-start mb-10">
             <div className="w-full max-w-lg bg-white dark:bg-gray-800 rounded-sm shadow-md overflow-hidden border dark:border-gray-700">
               <Table>
                 <TableBody>
@@ -69,6 +69,39 @@ const BookInfo = () => {
               </Table>
             </div>
           </div>
+
+          {/* Contact Section */}
+          <section className="bg-slate-50 py-10 md:py-16 border border-slate-200 mt-10 rounded-xl max-w-4xl mx-auto shadow-sm">
+            <div className="container mx-auto px-4 text-center">
+              <h3 className="text-xl md:text-2xl font-bold text-slate-800 mb-2">
+                বইটি সম্পর্কে যেকোনো প্রয়োজনে যোগাযোগ করুন
+              </h3>
+              <p className="text-slate-500 mb-8">আমাদের সাপোর্ট টিম আপনাকে সাহায্য করার জন্য প্রস্তুত</p>
+              
+              <div className="flex flex-col sm:flex-row items-center justify-center gap-4 max-w-lg mx-auto">
+                {/* Direct Call Button */}
+                <a 
+                  href="tel:01629786168" 
+                  className="flex items-center justify-center gap-2 w-full sm:w-auto bg-white border-2 border-[#ff6b00] text-[#ff6b00] hover:bg-[#ff6b00] hover:text-white py-3.5 px-6 rounded-xl text-lg font-bold shadow-sm hover:shadow-md transition-all duration-300 group"
+                >
+                  <i className="fas fa-phone-alt group-hover:animate-bounce"></i>
+                  01629786168
+                </a>
+                
+                {/* WhatsApp Button */}
+                <a 
+                  href="https://wa.me/8801725755220" 
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center justify-center gap-2 w-full sm:w-auto bg-[#25D366] text-white hover:bg-[#1ebe57] py-3.5 px-6 rounded-xl text-lg font-bold shadow-md hover:shadow-lg transition-all duration-300"
+                >
+                  <i className="fab fa-whatsapp text-xl"></i>
+                  WhatsApp
+                </a>
+              </div>
+            </div>
+          </section>
+
         </div>
       </header>
     </>

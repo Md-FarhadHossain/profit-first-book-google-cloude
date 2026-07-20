@@ -16,7 +16,7 @@ const OrderNowBtn = ({ text = "এখনই অর্ডার করুন" }) 
           relative
           w-full
           px-8 py-4
-          font-bold text-white text-lg md:text-xl
+          font-bold text-white text-3xl
           bg-linear-to-r from-red-500 via-red-600 to-orange-500
           rounded-lg
           shadow-lg

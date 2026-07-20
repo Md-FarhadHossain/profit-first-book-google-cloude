@@ -138,7 +138,7 @@ const GroupReviews = () => {
 
         {/* Bottom CTA nudge */}
         <div className="text-center mt-14 w-full max-w-md mx-auto">
-          <OrderNowBtn text="বই অর্ডার করুন — গ্রুপে ঢুকুন" />
+          <OrderNowBtn text="বই অর্ডার করুন" />
         </div>
       </div>
     </section>

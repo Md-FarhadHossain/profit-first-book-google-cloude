@@ -20,7 +20,7 @@ const ReaderSaid = () => {
           <Image className="w-1/3 shadow-xl" src={re02} alt="ms01" />
           <Image className="w-1/3 rotate-7 shadow-xl" src={re03} alt="ms01" />
         </div>
-        <div className="flex w-fit my-8">
+        {/* <div className="flex w-fit my-8">
           <Image className="w-1/3 -rotate-7 shadow-xl" src={re04} alt="ms01" />
           <Image className="w-1/3 shadow-xl" src={re05} alt="ms01" />
           <Image className="w-1/3 rotate-7 shadow-xl" src={re06} alt="ms01" />
@@ -29,7 +29,7 @@ const ReaderSaid = () => {
           <Image className="w-1/3 -rotate-7 shadow-xl" src={re07} alt="ms01" />
           <Image className="w-1/3 shadow-xl" src={re08} alt="ms01" />
           <Image className="w-1/3 rotate-7 shadow-xl" src={re09} alt="ms01" />
-        </div>
+        </div> */}
       </div>
       <div className="px-2">
         <BlueOrderNowBtn />

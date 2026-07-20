@@ -62,7 +62,7 @@ const entrepreneurs = [
 
 const PrivateCommunity = () => {
   return (
-    <section className="py-12 md:py-24 bg-linear-to-b from-slate-50 to-white overflow-hidden relative mt-12">
+    <section className="py-12 md:py-24 bg-linear-to-b from-slate-50 to-white overflow-hidden relative mt-4">
       
       {/* Subtle Background Glows */}
       <div className="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none opacity-40">
@@ -74,12 +74,12 @@ const PrivateCommunity = () => {
         
         {/* HEADLINE SECTION */}
         <div className="text-center max-w-3xl mx-auto mb-12">
-          <div className="inline-flex items-center gap-2 bg-blue-50 border border-blue-100 px-4 py-1.5 rounded-full mb-5">
+          {/* <div className="inline-flex items-center gap-2 bg-blue-50 border border-blue-100 px-4 py-1.5 rounded-full mb-5">
             <Users size={16} className="text-blue-600" />
             <span className="text-blue-700 font-bold text-xs md:text-sm uppercase tracking-wider">
               Trusted by Top F-Commerce Owners
             </span>
-          </div>
+          </div> */}
           
           <h2 className="text-3xl md:text-4xl lg:text-5xl font-extrabold text-slate-900 mb-6 leading-tight">
             বাংলাদেশের লিডিং <br className="md:hidden" />
@@ -87,9 +87,9 @@ const PrivateCommunity = () => {
             এখন 'প্রফিট ফার্স্ট' কমিউনিটিতে
           </h2>
           
-          <p className="text-base md:text-lg text-slate-600 leading-relaxed max-w-2xl mx-auto">
+          {/* <p className="text-base md:text-lg text-slate-600 leading-relaxed max-w-2xl mx-auto">
             বইটি অর্ডার করলেই আপনি পাবেন একটি <span className="text-slate-900 font-semibold underline decoration-orange-400 underline-offset-2">সিক্রেট ইনভাইটেশন</span>, যা আপনাকে এই সফল উদ্যোক্তাদের নেটওয়ার্কে যুক্ত হওয়ার সুযোগ করে দেবে।
-          </p>
+          </p> */}
         </div>
 
         {/* CARDS SECTION (Flex Wrap for perfect centering of 5 items) */}
@@ -134,19 +134,19 @@ const PrivateCommunity = () => {
         <div className="mt-16 mb-4">
           {/* Section Label */}
           <div className="text-center mb-8">
-            <div className="inline-flex items-center gap-2 bg-red-50 border border-red-200 px-4 py-1.5 rounded-full mb-4">
+            {/* <div className="inline-flex items-center gap-2 bg-red-50 border border-red-200 px-4 py-1.5 rounded-full mb-4">
               <Lock size={14} className="text-red-600" />
               <span className="text-red-700 font-bold text-xs uppercase tracking-wider">Secret Exclusive Group</span>
-            </div>
+            </div> */}
             <h3 className="text-4xl md:text-3xl font-extrabold text-slate-900 leading-tight">
               বইটি কিনলেই পাবেন{" "}
               <span className="text-transparent bg-clip-text bg-linear-to-r from-blue-600 to-indigo-600">
                 সিক্রেট গ্রুপে ইনভাইট
               </span>
             </h3>
-            <p className="text-slate-500 mt-2 text-xl md:text-base max-w-xl mx-auto">
+            {/* <p className="text-slate-500 mt-2 text-xl md:text-base max-w-xl mx-auto">
               যেখানে ৬০০+ উদ্যোক্তারা প্রতিদিন নেটওয়ার্ক করছেন, সমস্যার সমাধান খুঁজছেন, এবং একে অপরকে সাহায্য করছেন
-            </p>
+            </p> */}
           </div>
 
           {/* Main Group Card */}
@@ -175,7 +175,7 @@ const PrivateCommunity = () => {
                     </div>
                     <div>
                       <p className="text-xs text-slate-500 font-medium leading-none">Active Members</p>
-                      <p className="text-xl font-black text-blue-700 leading-tight">৬২১+</p>
+                      <p className="text-xl font-black text-blue-700 leading-tight">১২০০+</p>
                     </div>
                   </div>
 
@@ -186,7 +186,7 @@ const PrivateCommunity = () => {
                 <div className="md:w-[45%] p-5 md:p-7 flex flex-col justify-between">
                   <div>
                     {/* Group name */}
-                    <div className="flex items-start gap-2 mb-4">
+                    {/* <div className="flex items-start gap-2 mb-4">
                       <div className="w-8 h-8 shrink-0 bg-blue-600 rounded-lg flex items-center justify-center mt-0.5">
                         <Facebook size={16} className="text-white" fill="white" />
                       </div>
@@ -194,7 +194,7 @@ const PrivateCommunity = () => {
                         <h4 className="font-extrabold text-slate-900 text-base leading-tight">F-COMMERCE UDDOKTA</h4>
                         <p className="text-xs text-slate-400 font-medium">Official Group</p>
                       </div>
-                    </div>
+                    </div> */}
 
                     {/* Benefits list */}
                     <ul className="space-y-2.5 mb-5">
@@ -214,7 +214,7 @@ const PrivateCommunity = () => {
                     </ul>
 
                     {/* Category tags */}
-                    <div className="flex flex-wrap gap-2 mb-5">
+                    {/* <div className="flex flex-wrap gap-2 mb-5">
                       {[
                         { name: "Clothing", style: "bg-pink-100 text-pink-700 border-pink-200" },
                         { name: "Organic Food", style: "bg-green-100 text-green-700 border-green-200" },
@@ -227,7 +227,7 @@ const PrivateCommunity = () => {
                           {cat.name}
                         </span>
                       ))}
-                    </div>
+                    </div> */}
                   </div>
                 </div>
               </div>

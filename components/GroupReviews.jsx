@@ -111,21 +111,21 @@ const GroupReviews = () => {
         
         {/* Section Header */}
         <div className="text-center max-w-3xl mx-auto mb-8">
-          <div className="inline-flex items-center gap-2 bg-blue-50 border border-blue-100 px-3 py-1 rounded-full mb-3">
+          {/* <div className="inline-flex items-center gap-2 bg-blue-50 border border-blue-100 px-3 py-1 rounded-full mb-3">
             <ThumbsUp size={14} className="text-blue-600" fill="currentColor" />
             <span className="text-blue-700 font-bold text- uppercase tracking-wider">
               গ্রুপ থেকে রিয়েল স্টোরি
             </span>
-          </div>
+          </div> */}
           <h2 className="text-4xl md:text-4xl lg:text-5xl font-extrabold text-slate-900 mb-4 leading-tight">
             বইটি পড়তে শুরু করেছেন, <br className="md:hidden" />
             <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-600">
               রেজাল্ট পেতেও শুরু করেছেন!
             </span>
           </h2>
-          <p className="text-xl md:text-lg font-medium text-slate-600 leading-relaxed max-w-2xl mx-auto px-1">
+          {/* <p className="text-xl md:text-lg font-medium text-slate-600 leading-relaxed max-w-2xl mx-auto px-1">
             আমাদের প্রাইভেট গ্রুপের সদস্যরা বইটি হাতে পেয়েই তাদের অভিজ্ঞতা শেয়ার করছেন, কেউ কোটি টাকার লস থেকে বেঁচেছেন, কেউ মাত্র ৫ পেজ পড়েই অনেক ভ্যালু পেয়েছেন।
-          </p>
+          </p> */}
         </div>
 
         {/* Reviews: 1 col mobile, 3 col desktop */}

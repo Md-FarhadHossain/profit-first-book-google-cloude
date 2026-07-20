@@ -28,7 +28,7 @@ const Testimonials = () => {
         <Image className="w-1/3 shadow-xl" src={wp2} alt="ms01" />
         <Image className="w-1/3 rotate-7 shadow-xl" src={wp3} alt="ms01" />
       </div>
-      <div className="flex w-fit my-2">
+      {/* <div className="flex w-fit my-2">
         <Image className="w-1/3 -rotate-7 shadow-xl" src={wp4} alt="ms01" />
         <Image className="w-1/3 shadow-xl" src={wp5} alt="ms01" />
         <Image className="w-1/3 rotate-7 shadow-xl" src={wp6} alt="ms01" />
@@ -37,7 +37,7 @@ const Testimonials = () => {
         <Image className="w-1/3 -rotate-7 shadow-xl" src={wp7} alt="ms01" />
         <Image className="w-1/3 shadow-xl" src={wp8} alt="ms01" />
         <Image className="w-1/3 rotate-7 shadow-xl" src={wp9} alt="ms01" />
-      </div>
+      </div> */}
       <div className="px-2">
 
       <OrderNowBtn />

@@ -9,6 +9,7 @@ import {
   AlertTriangle, Share2, ArrowRightCircle
 } from 'lucide-react';
 import { UAParser } from 'ua-parser-js'; 
+import getAllOrders from '@/lib/getAllorders';
 
 // --- CONFIGURATION ---
 const ACTION_OPTIONS = [
@@ -396,33 +397,45 @@ export default function PendingOrdersPage() {
   const fetchOrders = async () => {
     try {
       setLoading(true);
-      // REPLACED IMPORT WITH DIRECT FETCH
-      const response = await fetch('/api/save-partial-order', {
-        cache: 'no-store',
-      });
+      
+      const [response, allRealOrders] = await Promise.all([
+        fetch('/api/save-partial-order', { cache: 'no-store' }),
+        getAllOrders()
+      ]);
+      
       const json = await response.json();
       const rawData = json.data || [];
       
-      const processed = rawData.map((item, idx) => ({
-        _id: item._id || `temp-${idx}`,
-        orderId: item.orderId || item.items?.[0]?.postId || 'N/A', 
-        createdAt: item.createdAt || new Date().toISOString(),
-        status: item.marketing?.status || item.status || 'Processing',
-        callStatus: item.phoneCallStatus || 'Pending',
-        customer: {
-          name: item.marketing?.name || item.name || 'Guest',
-          phone: item.marketing?.number || item.number || 'N/A'
-        },
-        items: item.items || [],
-        address: item.address || item.marketing?.address || 'N/A',
-        clientInfo: item.clientInfo || {},
-        userAgent: item.clientInfo?.userAgent || item.userAgent || '',
+      const processed = rawData.map((item, idx) => {
+        const phone = item.marketing?.number || item.number || 'N/A';
         
-        // FIXED: Explicitly map the fields from the root level
-        shipping: item.shipping,
-        shippingCost: item.shippingCost,
-        totalValue: item.totalValue
-      }));
+        // Normalize phone number to match safely
+        const normalize = (p) => p ? p.replace(/\D/g, '').slice(-11) : '';
+        const normPhone = normalize(phone);
+        const matchingOrder = normPhone.length > 5 ? allRealOrders.find(ro => normalize(ro.customer?.phone) === normPhone) : null;
+        
+        return {
+          _id: item._id || `temp-${idx}`,
+          orderId: item.orderId || item.items?.[0]?.postId || 'N/A', 
+          createdAt: item.createdAt || new Date().toISOString(),
+          status: item.marketing?.status || item.status || 'Processing',
+          callStatus: item.phoneCallStatus || 'Pending',
+          customer: {
+            name: item.marketing?.name || item.name || 'Guest',
+            phone: phone
+          },
+          items: item.items || [],
+          address: item.address || item.marketing?.address || 'N/A',
+          clientInfo: item.clientInfo || {},
+          userAgent: item.clientInfo?.userAgent || item.userAgent || '',
+          
+          // Explicitly map the fields from the root level
+          shipping: item.shipping,
+          shippingCost: item.shippingCost,
+          totalValue: item.totalValue,
+          realOrder: matchingOrder || null
+        };
+      });
       setOrders(processed.sort((a,b) => new Date(b.createdAt) - new Date(a.createdAt)));
     } catch (error) {
       console.error("Failed to load orders", error);
@@ -617,83 +630,109 @@ export default function PendingOrdersPage() {
            </div>
         </div>
 
-        <div className="bg-gray-900 border border-gray-800 rounded-2xl overflow-hidden shadow-xl">
-           <div className="overflow-x-auto">
-             <table className="w-full">
+        <div className="bg-[#111624] border border-gray-800 rounded-2xl overflow-hidden shadow-2xl">
+           <div className="overflow-x-auto custom-scrollbar">
+             <table className="w-full text-left whitespace-nowrap">
                <thead>
-                 <tr className="bg-gray-800/50 text-left">
-                   <th className="py-4 px-6 text-xs font-bold text-gray-500 uppercase tracking-wider">Customer</th>
-                   <th className="py-4 px-6 text-xs font-bold text-gray-500 uppercase tracking-wider">Cart Details</th>
-                   <th className="py-4 px-6 text-xs font-bold text-gray-500 uppercase tracking-wider">Time Ago</th>
-                   <th className="py-4 px-6 text-xs font-bold text-gray-500 uppercase tracking-wider">Status</th>
-                   <th className="py-4 px-6 text-xs font-bold text-gray-500 uppercase tracking-wider">Call</th>
-                   <th className="py-4 px-6 text-xs font-bold text-gray-500 uppercase tracking-wider text-right">Action</th>
+                 <tr className="bg-[#1A2235] text-gray-400 border-b border-gray-800 text-[10px] font-bold uppercase tracking-widest">
+                   <th className="py-4 px-6">Order Info</th>
+                   <th className="py-4 px-6">Time</th>
+                   <th className="py-4 px-6">Geography</th>
+                   <th className="py-4 px-6">Status</th>
+                   <th className="py-4 px-6">Call</th>
+                   <th className="py-4 px-6 text-right">Action</th>
                  </tr>
                </thead>
-               <tbody className="divide-y divide-gray-800">
+               <tbody className="divide-y divide-gray-800/60">
                  {loading ? (
-                   <tr><td colSpan="6" className="py-12 text-center text-gray-500">Loading orders...</td></tr>
+                   <tr><td colSpan="6" className="py-16 text-center text-gray-500 font-medium flex items-center justify-center gap-3"><span className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-500"></span> Loading unsubmitted orders...</td></tr>
                  ) : paginatedData.length === 0 ? (
-                   <tr><td colSpan="6" className="py-12 text-center text-gray-500">No orders found.</td></tr>
+                   <tr><td colSpan="6" className="py-16 text-center text-gray-500">No abandoned carts found.</td></tr>
                  ) : (
                    paginatedData.map((order) => {
                      const item = order.items?.[0] || {};
+                     const hasRealOrder = !!order.realOrder;
                      return (
-                       <tr key={order._id} className="hover:bg-gray-800/50 transition-colors group">
+                       <tr key={order._id} className={`group transition-all duration-200 ${hasRealOrder ? 'bg-[#151c2e] hover:bg-[#1a233a] opacity-80' : 'bg-transparent hover:bg-gray-800/40'}`}>
+                         {/* ORDER INFO */}
                          <td className="py-4 px-6">
-                           <div className="flex items-center gap-3">
-                              <div className="w-10 h-10 rounded-full bg-linear-to-br from-gray-700 to-gray-800 flex items-center justify-center text-gray-400 font-bold text-xs border border-gray-600">
-                                {(order.customer.name || 'G').charAt(0).toUpperCase()}
+                           <div className="flex items-center gap-4">
+                              <div className="flex flex-col gap-1.5 min-w-[120px]">
+                                <div className="flex items-center gap-2">
+                                  <span className="text-[13px] font-bold text-white group-hover:text-blue-400 transition-colors truncate max-w-[160px]">{order.customer.name}</span>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  <span className="text-xs text-gray-400 font-mono">{order.customer.phone}</span>
+                                </div>
                               </div>
-                              <div>
-                                <p className="text-sm font-semibold text-white group-hover:text-blue-400 transition-colors">{order.customer.name}</p>
-                                <p className="text-xs text-gray-500 font-mono mt-0.5 lg:block md:block hidden">{order.customer.phone}</p>
-
-                                  <a
-                            href={`tel:${order.customer?.phone}`}
-                            className="text-xs text-gray-400 mt-0.5 hover:text-blue-500 hover:underline cursor-pointer block lg:hidden md:hidden"
-                          >
-                            {order.customer?.phone}
-                          </a>
-                              </div>
+                              {hasRealOrder && (
+                                <div className="hidden lg:flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-green-500/10 border border-green-500/20 text-green-400 text-[10px] font-bold uppercase tracking-wider">
+                                  <CheckCircle size={12} />
+                                  Already Ordered ({order.realOrder.status})
+                                </div>
+                              )}
                            </div>
+                           {/* Mobile version of real order badge */}
+                           {hasRealOrder && (
+                              <div className="lg:hidden mt-2 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-green-500/10 border border-green-500/20 text-green-400 text-[10px] font-bold uppercase tracking-wider">
+                                <CheckCircle size={12} />
+                                Ordered ({order.realOrder.status})
+                              </div>
+                           )}
                          </td>
+                         
+                         {/* TIME */}
                          <td className="py-4 px-6">
-                            <div className="flex flex-col gap-1">
-                               {/* FIXED: Read totalValue from order root */}
-                               <span className="text-sm text-gray-300 font-medium">{order.totalValue ? `${order.totalValue} ৳` : 'N/A'}</span>
-                               {/* FIXED: Read shipping from order root */}
-                               <span className="text-[10px] text-gray-500">{order.shipping || 'Standard'}</span>
-                               
+                            <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded bg-gray-800/50 text-gray-400 text-[11px] font-medium border border-gray-700/50">
+                              <Clock size={12} /> {formatTimeAgo(order.createdAt)}
+                            </div>
+                         </td>
+                         
+                         {/* GEOGRAPHY / CART */}
+                         <td className="py-4 px-6">
+                            <div className="flex flex-col gap-1.5">
+                               <div className="flex items-center gap-2">
+                                 <span className="text-sm text-gray-200 font-bold">{order.totalValue ? `${order.totalValue} ৳` : 'N/A'}</span>
+                                 <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-orange-500/10 text-orange-400">{order.shipping || 'Standard'}</span>
+                               </div>
                                {order.address && order.address !== 'N/A' && (
-                                  <div className="flex items-center gap-1 mt-0.5  text-gray-400 max-w-[180px]">
-                                     <MapPin size={10} className="shrink-0" />
-                                     <span className="truncate" title={order.address}>{order.address}</span>
+                                  <div className="flex items-center gap-1.5 text-xs text-gray-400 max-w-[200px] truncate" title={order.address}>
+                                     <MapPin size={12} className="shrink-0 text-gray-500" />
+                                     <span className="truncate">{order.address}</span>
                                   </div>
                                )}
                             </div>
                          </td>
+                         
+                         {/* STATUS */}
                          <td className="py-4 px-6">
-                            <span className="text-xs text-gray-400 flex items-center gap-1.5">
-                              <Clock size={12} /> {formatTimeAgo(order.createdAt)}
-                            </span>
+                            {hasRealOrder ? (
+                               <span className="text-xs text-gray-500 font-medium italic">Handled</span>
+                            ) : (
+                               <StatusDropdown 
+                                   status={order.status} 
+                                   onStatusChange={(newStatus) => handleStatusUpdate(order._id, newStatus)} 
+                               />
+                            )}
                          </td>
+                         
+                         {/* CALL */}
                          <td className="py-4 px-6">
-                            <StatusDropdown 
-                                status={order.status} 
-                                onStatusChange={(newStatus) => handleStatusUpdate(order._id, newStatus)} 
-                            />
+                            {hasRealOrder ? (
+                               <span className="text-xs text-gray-500 font-medium italic">N/A</span>
+                            ) : (
+                               <CallStatusDropdown 
+                                   currentStatus={order.callStatus} 
+                                   onStatusChange={(newCallStatus) => handleCallStatusUpdate(order._id, newCallStatus)} 
+                               />
+                            )}
                          </td>
-                         <td className="py-4 px-6">
-                            <CallStatusDropdown 
-                                currentStatus={order.callStatus} 
-                                onStatusChange={(newCallStatus) => handleCallStatusUpdate(order._id, newCallStatus)} 
-                            />
-                         </td>
+                         
+                         {/* ACTION */}
                          <td className="py-4 px-6 text-right">
                             <button 
                               onClick={() => setSelectedOrder(order)}
-                              className="inline-flex items-center gap-2 px-3 py-1.5 bg-gray-800 hover:bg-gray-700 border border-gray-700 hover:border-gray-600 rounded-lg text-xs font-medium text-white transition-all"
+                              className="inline-flex items-center gap-2 px-3 py-1.5 bg-[#1F2937] hover:bg-[#374151] border border-gray-700 rounded-md text-[11px] font-bold text-white transition-all shadow-sm"
                             >
                               <Eye size={14} /> View
                             </button>
@@ -705,15 +744,17 @@ export default function PendingOrdersPage() {
                </tbody>
              </table>
            </div>
+           
+           {/* Pagination */}
            {totalPages > 1 && (
-            <div className="px-6 py-4 border-t border-gray-800 flex items-center justify-between">
-                <span className="text-xs text-gray-500">Page {currentPage} of {totalPages}</span>
+            <div className="px-6 py-4 border-t border-gray-800 bg-[#151c2e] flex items-center justify-between">
+                <span className="text-xs text-gray-400 font-medium">Showing page <span className="text-white">{currentPage}</span> of <span className="text-white">{totalPages}</span></span>
                 <div className="flex gap-2">
                     <button disabled={currentPage === 1} onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                    className="p-2 rounded-lg bg-gray-800 border border-gray-700 text-gray-400 disabled:opacity-30 disabled:cursor-not-allowed hover:text-white">
+                    className="p-2 rounded-lg bg-gray-800/80 border border-gray-700 text-gray-400 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-gray-700 hover:text-white transition-colors">
                     <ChevronLeft size={16} /></button>
                     <button disabled={currentPage === totalPages} onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                    className="p-2 rounded-lg bg-gray-800 border border-gray-700 text-gray-400 disabled:opacity-30 disabled:cursor-not-allowed hover:text-white">
+                    className="p-2 rounded-lg bg-gray-800/80 border border-gray-700 text-gray-400 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-gray-700 hover:text-white transition-colors">
                     <ChevronRight size={16} /></button>
                 </div>
             </div>

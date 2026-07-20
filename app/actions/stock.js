@@ -40,6 +40,30 @@ export async function deleteStockHistory(id) {
   }
 }
 
+// Get a specific stock history entry by ID
+export async function getStockHistoryById(id) {
+  try {
+    const entry = await db.select().from(stockHistory).where(eq(stockHistory.id, id)).limit(1);
+    return entry.length > 0 ? entry[0] : null;
+  } catch (error) {
+    console.error('Failed to get stock history by ID:', error);
+    throw new Error('Could not fetch stock history entry.');
+  }
+}
+
+// Update costs for a specific stock history entry
+export async function updateStockCosts(id, costs) {
+  try {
+    await db.update(stockHistory)
+      .set({ costs: costs })
+      .where(eq(stockHistory.id, id));
+    return true;
+  } catch (error) {
+    console.error('Failed to update stock costs:', error);
+    throw new Error('Could not update stock costs.');
+  }
+}
+
 // Calculate Available Stock dynamically
 export async function getStock(productName = 'Book') {
   try {

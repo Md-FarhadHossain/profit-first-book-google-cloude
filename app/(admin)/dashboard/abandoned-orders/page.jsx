@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import { UAParser } from 'ua-parser-js'; 
 import getAllOrders from '@/lib/getAllorders';
+import { SteadfastPill, FraudCheckerBadge } from '@/components/SteadfastWidgets';
 
 // --- CONFIGURATION ---
 const ACTION_OPTIONS = [
@@ -309,11 +310,12 @@ const OrderModal = ({ order, onClose, onStatusChange, onCallStatusChange, onMigr
                    <a href={`tel:${order.customer.phone}`} className="flex items-center justify-center gap-2 bg-green-600 hover:bg-green-500 text-white py-2 rounded-lg text-xs font-bold transition-colors">
                      <PhoneCall size={14} /> Call Now
                    </a>
-                   <button className="flex items-center justify-center gap-2 bg-gray-700 hover:bg-gray-600 text-white py-2 rounded-lg text-xs font-bold transition-colors">
+                   <a href={`https://wa.me/${order.customer.phone?.replace(/[^0-9]/g, '')}`} target="_blank" rel="noopener noreferrer" className="flex items-center justify-center gap-2 bg-gray-700 hover:bg-gray-600 text-white py-2 rounded-lg text-xs font-bold transition-colors">
                      <Share2 size={14} /> WhatsApp
-                   </button>
+                   </a>
                 </div>
               </div>
+              <FraudCheckerBadge phone={order.customer.phone} />
             </div>
           </div>
         </div>
@@ -385,11 +387,13 @@ export default function PendingOrdersPage() {
     const today = new Date().setHours(0,0,0,0);
     const yesterday = new Date(today);
     yesterday.setDate(yesterday.getDate() - 1);
+    const firstDayOfMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1).getTime();
 
     return {
       total: orders.length,
       today: orders.filter(o => new Date(o.createdAt).setHours(0,0,0,0) === today).length,
       yesterday: orders.filter(o => new Date(o.createdAt).setHours(0,0,0,0) === yesterday.getTime()).length,
+      thisMonth: orders.filter(o => new Date(o.createdAt).getTime() >= firstDayOfMonth).length,
       abandoned: orders.filter(o => !o.status || o.status === 'Processing').length
     };
   }, [orders]);
@@ -454,7 +458,7 @@ export default function PendingOrdersPage() {
     setOrders(prev => prev.map(o => o._id === id ? { ...o, status: newStatus } : o));
     if (selectedOrder && selectedOrder._id === id) setSelectedOrder(prev => ({...prev, status: newStatus}));
     try {
-        await fetch(`/api/orders/${id}`, {
+        await fetch(`/api/partial-orders/${id}`, {
             method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status: newStatus }),
         });
     } catch(e) { console.error("Update failed", e); }
@@ -464,7 +468,7 @@ export default function PendingOrdersPage() {
       setOrders(prev => prev.map(o => o._id === id ? { ...o, callStatus: newCallStatus } : o));
       if (selectedOrder && selectedOrder._id === id) setSelectedOrder(prev => ({...prev, callStatus: newCallStatus}));
       try {
-        await fetch(`/api/orders/${id}/call-status`, {
+        await fetch(`/api/partial-orders/${id}`, {
             method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ callStatus: newCallStatus }),
         });
       } catch(e) { console.error("Call Status Update failed", e); }
@@ -583,7 +587,7 @@ export default function PendingOrdersPage() {
           </div>
         </header>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
            <div className="bg-gray-900 border border-gray-800 p-5 rounded-2xl flex items-center justify-between">
              <div>
                <p className="text-gray-500 text-xs font-bold uppercase tracking-wider mb-1">Total</p>
@@ -604,6 +608,13 @@ export default function PendingOrdersPage() {
                <p className="text-3xl font-bold text-white">{stats.yesterday}</p>
              </div>
              <div className="w-10 h-10 bg-orange-500/10 rounded-full flex items-center justify-center text-orange-500"><Clock size={20} /></div>
+           </div>
+           <div className="bg-gray-900 border border-gray-800 p-5 rounded-2xl flex items-center justify-between">
+             <div>
+               <p className="text-gray-500 text-xs font-bold uppercase tracking-wider mb-1">This Month</p>
+               <p className="text-3xl font-bold text-white">{stats.thisMonth}</p>
+             </div>
+             <div className="w-10 h-10 bg-purple-500/10 rounded-full flex items-center justify-center text-purple-500"><Calendar size={20} /></div>
            </div>
         </div>
 
@@ -631,113 +642,184 @@ export default function PendingOrdersPage() {
         </div>
 
         <div className="bg-[#111624] border border-gray-800 rounded-2xl overflow-hidden shadow-2xl">
-           <div className="overflow-x-auto custom-scrollbar">
-             <table className="w-full text-left whitespace-nowrap">
-               <thead>
+           <div className="overflow-x-hidden md:overflow-x-auto custom-scrollbar">
+             <table className="w-full text-left whitespace-nowrap block md:table">
+               <thead className="hidden md:table-header-group">
                  <tr className="bg-[#1A2235] text-gray-400 border-b border-gray-800 text-[10px] font-bold uppercase tracking-widest">
                    <th className="py-4 px-6">Order Info</th>
                    <th className="py-4 px-6">Time</th>
                    <th className="py-4 px-6">Geography</th>
+                   <th className="py-4 px-6">Courier History</th>
                    <th className="py-4 px-6">Status</th>
                    <th className="py-4 px-6">Call</th>
                    <th className="py-4 px-6 text-right">Action</th>
                  </tr>
                </thead>
-               <tbody className="divide-y divide-gray-800/60">
+               <tbody className="divide-y divide-gray-800/60 block md:table-row-group w-full">
                  {loading ? (
-                   <tr><td colSpan="6" className="py-16 text-center text-gray-500 font-medium flex items-center justify-center gap-3"><span className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-500"></span> Loading unsubmitted orders...</td></tr>
+                   <tr><td colSpan="7" className="py-16 text-center text-gray-500 font-medium flex items-center justify-center gap-3"><span className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-500"></span> Loading unsubmitted orders...</td></tr>
                  ) : paginatedData.length === 0 ? (
-                   <tr><td colSpan="6" className="py-16 text-center text-gray-500">No abandoned carts found.</td></tr>
+                   <tr><td colSpan="7" className="py-16 text-center text-gray-500">No abandoned carts found.</td></tr>
                  ) : (
                    paginatedData.map((order) => {
                      const item = order.items?.[0] || {};
                      const hasRealOrder = !!order.realOrder;
                      return (
-                       <tr key={order._id} className={`group transition-all duration-200 ${hasRealOrder ? 'bg-[#151c2e] hover:bg-[#1a233a] opacity-80' : 'bg-transparent hover:bg-gray-800/40'}`}>
-                         {/* ORDER INFO */}
-                         <td className="py-4 px-6">
-                           <div className="flex items-center gap-4">
-                              <div className="flex flex-col gap-1.5 min-w-[120px]">
-                                <div className="flex items-center gap-2">
-                                  <span className="text-[13px] font-bold text-white group-hover:text-blue-400 transition-colors truncate max-w-[160px]">{order.customer.name}</span>
-                                </div>
-                                <div className="flex items-center gap-2">
-                                  <span className="text-xs text-gray-400 font-mono">{order.customer.phone}</span>
-                                </div>
-                              </div>
-                              {hasRealOrder && (
-                                <div className="hidden lg:flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-green-500/10 border border-green-500/20 text-green-400 text-[10px] font-bold uppercase tracking-wider">
-                                  <CheckCircle size={12} />
-                                  Already Ordered ({order.realOrder.status})
-                                </div>
-                              )}
-                           </div>
-                           {/* Mobile version of real order badge */}
-                           {hasRealOrder && (
-                              <div className="lg:hidden mt-2 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-green-500/10 border border-green-500/20 text-green-400 text-[10px] font-bold uppercase tracking-wider">
-                                <CheckCircle size={12} />
-                                Ordered ({order.realOrder.status})
-                              </div>
-                           )}
-                         </td>
-                         
-                         {/* TIME */}
-                         <td className="py-4 px-6">
-                            <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded bg-gray-800/50 text-gray-400 text-[11px] font-medium border border-gray-700/50">
-                              <Clock size={12} /> {formatTimeAgo(order.createdAt)}
-                            </div>
-                         </td>
-                         
-                         {/* GEOGRAPHY / CART */}
-                         <td className="py-4 px-6">
-                            <div className="flex flex-col gap-1.5">
-                               <div className="flex items-center gap-2">
-                                 <span className="text-sm text-gray-200 font-bold">{order.totalValue ? `${order.totalValue} ৳` : 'N/A'}</span>
-                                 <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-orange-500/10 text-orange-400">{order.shipping || 'Standard'}</span>
-                               </div>
-                               {order.address && order.address !== 'N/A' && (
-                                  <div className="flex items-center gap-1.5 text-xs text-gray-400 max-w-[200px] truncate" title={order.address}>
-                                     <MapPin size={12} className="shrink-0 text-gray-500" />
-                                     <span className="truncate">{order.address}</span>
+                       <React.Fragment key={order._id}>
+                         {/* DESKTOP ROW */}
+                         <tr className={`hidden md:table-row group transition-all duration-200 ${hasRealOrder ? 'bg-[#151c2e] hover:bg-[#1a233a] opacity-80' : 'bg-transparent hover:bg-gray-800/40'}`}>
+                           {/* ORDER INFO */}
+                           <td className="py-4 px-6">
+                             <div className="flex items-center gap-4">
+                                <div className="flex flex-col gap-1.5 min-w-[120px]">
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-[13px] font-bold text-white group-hover:text-blue-400 transition-colors truncate max-w-[160px]">{order.customer.name}</span>
                                   </div>
-                               )}
-                            </div>
-                         </td>
-                         
-                         {/* STATUS */}
-                         <td className="py-4 px-6">
-                            {hasRealOrder ? (
-                               <span className="text-xs text-gray-500 font-medium italic">Handled</span>
-                            ) : (
-                               <StatusDropdown 
-                                   status={order.status} 
-                                   onStatusChange={(newStatus) => handleStatusUpdate(order._id, newStatus)} 
-                               />
-                            )}
-                         </td>
-                         
-                         {/* CALL */}
-                         <td className="py-4 px-6">
-                            {hasRealOrder ? (
-                               <span className="text-xs text-gray-500 font-medium italic">N/A</span>
-                            ) : (
-                               <CallStatusDropdown 
-                                   currentStatus={order.callStatus} 
-                                   onStatusChange={(newCallStatus) => handleCallStatusUpdate(order._id, newCallStatus)} 
-                               />
-                            )}
-                         </td>
-                         
-                         {/* ACTION */}
-                         <td className="py-4 px-6 text-right">
-                            <button 
-                              onClick={() => setSelectedOrder(order)}
-                              className="inline-flex items-center gap-2 px-3 py-1.5 bg-[#1F2937] hover:bg-[#374151] border border-gray-700 rounded-md text-[11px] font-bold text-white transition-all shadow-sm"
-                            >
-                              <Eye size={14} /> View
-                            </button>
-                         </td>
-                       </tr>
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-xs text-gray-400 font-mono">{order.customer.phone}</span>
+                                  </div>
+                                </div>
+                                {hasRealOrder && (
+                                  <div className="hidden lg:flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-green-500/10 border border-green-500/20 text-green-400 text-[10px] font-bold uppercase tracking-wider">
+                                    <CheckCircle size={12} />
+                                    Already Ordered ({order.realOrder.status})
+                                  </div>
+                                )}
+                             </div>
+                           </td>
+                           
+                           {/* TIME */}
+                           <td className="py-4 px-6">
+                              <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded bg-gray-800/50 text-gray-400 text-[11px] font-medium border border-gray-700/50">
+                                <Clock size={12} /> {formatTimeAgo(order.createdAt)}
+                              </div>
+                           </td>
+                           
+                           {/* GEOGRAPHY / CART */}
+                           <td className="py-4 px-6">
+                              <div className="flex flex-col gap-1.5">
+                                 <div className="flex items-center gap-2">
+                                   <span className="text-sm text-gray-200 font-bold">{order.totalValue ? `${order.totalValue} ৳` : 'N/A'}</span>
+                                   <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-orange-500/10 text-orange-400">{order.shipping || 'Standard'}</span>
+                                 </div>
+                                 {order.address && order.address !== 'N/A' && (
+                                    <div className="flex items-center gap-1.5 text-xs text-gray-400 max-w-[200px] truncate" title={order.address}>
+                                       <MapPin size={12} className="shrink-0 text-gray-500" />
+                                       <span className="truncate">{order.address}</span>
+                                    </div>
+                                 )}
+                              </div>
+                           </td>
+
+                           {/* COURIER HISTORY */}
+                           <td className="py-4 px-6">
+                             <SteadfastPill phone={order.customer.phone} />
+                           </td>
+                           
+                           {/* STATUS */}
+                           <td className="py-4 px-6">
+                              {hasRealOrder ? (
+                                 <span className="text-xs text-gray-500 font-medium italic">Handled</span>
+                              ) : (
+                                 <StatusDropdown 
+                                     status={order.status} 
+                                     onStatusChange={(newStatus) => handleStatusUpdate(order._id, newStatus)} 
+                                 />
+                              )}
+                           </td>
+                           
+                           {/* CALL */}
+                           <td className="py-4 px-6">
+                              {hasRealOrder ? (
+                                 <span className="text-xs text-gray-500 font-medium italic">N/A</span>
+                              ) : (
+                                 <CallStatusDropdown 
+                                     currentStatus={order.callStatus} 
+                                     onStatusChange={(newCallStatus) => handleCallStatusUpdate(order._id, newCallStatus)} 
+                                 />
+                              )}
+                           </td>
+                           
+                           {/* ACTION */}
+                           <td className="py-4 px-6 text-right">
+                              <button 
+                                onClick={() => setSelectedOrder(order)}
+                                className="inline-flex items-center gap-2 px-3 py-1.5 bg-[#1F2937] hover:bg-[#374151] border border-gray-700 rounded-md text-[11px] font-bold text-white transition-all shadow-sm"
+                              >
+                                <Eye size={14} /> View
+                              </button>
+                           </td>
+                         </tr>
+
+                         {/* MOBILE CARD ROW */}
+                         <tr className="md:hidden block mb-4 w-full">
+                           <td colSpan="7" className="block p-0 w-full outline-none">
+                             <div className={`flex flex-col gap-0 rounded-2xl border ${hasRealOrder ? 'bg-green-950/20 border-green-500/20 shadow-lg shadow-green-900/10' : 'bg-gray-800/90 border-gray-700/50 shadow-md'} overflow-hidden`}>
+                               {/* Card Header */}
+                               <div className="px-4 pt-4 pb-3 flex items-start gap-3">
+                                 <div className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold shrink-0 ${hasRealOrder ? 'bg-green-500/20 text-green-400 border border-green-500/30' : 'bg-gray-700 text-gray-300 border border-gray-600'}`}>
+                                   {(order.customer?.name || 'G').charAt(0).toUpperCase()}
+                                 </div>
+                                 <div className="flex-1 min-w-0">
+                                   <div className="flex items-center gap-2 flex-wrap">
+                                     <span className="text-white font-semibold text-sm leading-tight truncate">{order.customer?.name || 'N/A'}</span>
+                                     {hasRealOrder && (
+                                       <span className="inline-flex items-center gap-1 text-[9px] font-bold px-1.5 py-0.5 rounded-full shrink-0 text-green-300 bg-green-500/20 border border-green-500/30">
+                                         <CheckCircle size={8} /> Ordered
+                                       </span>
+                                     )}
+                                   </div>
+                                   <div className="flex items-center gap-1.5 mt-1 text-xs text-blue-400 font-medium">
+                                     <Phone size={11} className="shrink-0" />
+                                     <span>{order.customer?.phone || 'N/A'}</span>
+                                   </div>
+                                 </div>
+                                 <div className="flex flex-col items-end gap-2 shrink-0">
+                                   <div className="flex items-center gap-1 text-[10px] text-gray-500">
+                                     <Clock size={10} /> {formatTimeAgo(order.createdAt)}
+                                   </div>
+                                   <button 
+                                     onClick={() => setSelectedOrder(order)}
+                                     className="p-1.5 rounded-lg bg-gray-700/50 text-gray-300 hover:bg-blue-600 hover:text-white transition-colors border border-gray-600"
+                                   >
+                                     <Eye size={14} />
+                                   </button>
+                                 </div>
+                               </div>
+
+                               {/* Card Body */}
+                               <div className="px-4 py-3 bg-gray-900/50 flex flex-col gap-3">
+                                 <div className="flex items-center justify-between text-sm">
+                                   <span className="font-bold text-white">{order.totalValue ? `${order.totalValue} ৳` : 'N/A'}</span>
+                                   <SteadfastPill phone={order.customer.phone} />
+                                 </div>
+                                 <div className="flex items-center justify-between gap-2 border-t border-gray-800/50 pt-3">
+                                   <div className="flex-1 min-w-0">
+                                      {hasRealOrder ? (
+                                         <span className="text-xs text-gray-500 font-medium italic">Handled</span>
+                                      ) : (
+                                         <CallStatusDropdown 
+                                             currentStatus={order.callStatus} 
+                                             onStatusChange={(newCallStatus) => handleCallStatusUpdate(order._id, newCallStatus)} 
+                                         />
+                                      )}
+                                   </div>
+                                   <div className="flex-1 min-w-0 text-right">
+                                      {hasRealOrder ? (
+                                         <span className="text-xs text-gray-500 font-medium italic">Handled</span>
+                                      ) : (
+                                         <StatusDropdown 
+                                             status={order.status} 
+                                             onStatusChange={(newStatus) => handleStatusUpdate(order._id, newStatus)} 
+                                         />
+                                      )}
+                                   </div>
+                                 </div>
+                               </div>
+                             </div>
+                           </td>
+                         </tr>
+                       </React.Fragment>
                      );
                    })
                  )}

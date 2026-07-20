@@ -13,8 +13,9 @@ import {
 import { 
   Package, RefreshCw, DollarSign, PlusCircle, History, 
   Trash2, Save, Send, Filter, TrendingUp, TrendingDown, 
-  Activity, Truck, BarChart2
+  Activity, Truck, BarChart2, Edit
 } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 
 const EXPENSE_CATEGORIES = [
   'Courier Cost',
@@ -22,6 +23,26 @@ const EXPENSE_CATEGORIES = [
   'Dollar Buying',
   'Other'
 ];
+
+const getBatchTotalCost = (costs) => {
+  if (!costs) return 0;
+  let total = 0;
+  total += parseFloat(costs.bookPrice) || 0;
+  total += parseFloat(costs.courier) || 0;
+  total += parseFloat(costs.vanBhara) || 0;
+  total += parseFloat(costs.cover) || 0;
+  total += parseFloat(costs.serviceCharge) || 0;
+  total += parseFloat(costs.carton) || 0;
+  total += parseFloat(costs.courierPoly) || 0;
+  total += parseFloat(costs.packaging) || 0;
+  total += parseFloat(costs.cosTape) || 0;
+  total += parseFloat(costs.letterPrint) || 0;
+  total += parseFloat(costs.paperPrice) || 0;
+  if (Array.isArray(costs.otherCosts)) {
+    total += costs.otherCosts.reduce((sum, c) => sum + (parseFloat(c.amount) || 0), 0);
+  }
+  return total;
+};
 
 export default function StockManagementPage() {
   const [stock, setStockLevel] = useState(0);
@@ -40,6 +61,7 @@ export default function StockManagementPage() {
   });
   const [steadfastPayments, setSteadfastPayments] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
+  const router = useRouter();
   
   // Expense Form State
   const [isSavingExpense, setIsSavingExpense] = useState(false);
@@ -1014,23 +1036,44 @@ export default function StockManagementPage() {
                       No stock history found.
                     </div>
                   ) : (
-                    stockHistoryData.map((entry) => (
-                      <div key={entry.id} className="flex items-center justify-between bg-gray-800/50 border border-gray-700/60 p-4 rounded-xl group hover:border-violet-500/30 transition-colors">
-                        <div>
-                          <div className="text-lg font-bold text-white">{entry.amount} <span className="text-sm font-normal text-gray-400">Books</span></div>
-                          <div className="text-xs text-gray-500 mt-1">
-                            {new Date(entry.date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
+                    stockHistoryData.map((entry) => {
+                      const batchCost = getBatchTotalCost(entry.costs);
+                      
+                      return (
+                        <div key={entry.id} className="flex items-center justify-between bg-gray-800/50 border border-gray-700/60 p-4 rounded-xl group hover:border-violet-500/30 transition-colors">
+                          <div className="flex-1">
+                            <div className="text-lg font-bold text-white">{entry.amount} <span className="text-sm font-normal text-gray-400">Books</span></div>
+                            <div className="text-xs text-gray-500 mt-1">
+                              {new Date(entry.date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
+                            </div>
+                          </div>
+                          
+                          {batchCost > 0 && (
+                            <div className="text-center px-4 flex-1">
+                              <span className="text-[10px] text-gray-500 uppercase tracking-widest font-semibold block mb-0.5">Total Cost</span>
+                              <span className="text-red-400 font-bold">৳ {batchCost.toLocaleString()}</span>
+                            </div>
+                          )}
+
+                          <div className="flex items-center justify-end gap-2 flex-1">
+                            <button
+                              onClick={() => router.push(`/dashboard/StockManagement/${entry.id}`)}
+                              className="text-gray-500 hover:text-blue-400 p-2 opacity-0 group-hover:opacity-100 transition-all bg-gray-900/50 hover:bg-blue-500/10 rounded-lg"
+                              title="Manage Batch Costs"
+                            >
+                              <Edit size={18} />
+                            </button>
+                            <button
+                              onClick={() => handleDeleteStock(entry.id)}
+                              className="text-gray-500 hover:text-red-400 p-2 opacity-0 group-hover:opacity-100 transition-all bg-gray-900/50 hover:bg-red-500/10 rounded-lg"
+                              title="Delete Entry"
+                            >
+                              <Trash2 size={18} />
+                            </button>
                           </div>
                         </div>
-                        <button
-                          onClick={() => handleDeleteStock(entry.id)}
-                          className="text-gray-500 hover:text-red-400 p-2 opacity-0 group-hover:opacity-100 transition-all bg-gray-900/50 hover:bg-red-500/10 rounded-lg"
-                          title="Delete Entry"
-                        >
-                          <Trash2 size={18} />
-                        </button>
-                      </div>
-                    ))
+                      );
+                    })
                   )}
                 </div>
               </div>

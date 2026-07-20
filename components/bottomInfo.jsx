@@ -96,7 +96,7 @@ export default function HeroSection() {
               </div>
 
               {/* Scarcity / Stock Info */}
-              <div className="bg-linear-to-br from-[#fffde7] to-[#fff3e0] border-l-4 border-[#FFB74D] shadow-lg rounded-xl p-5 mb-8 text-center lg:text-left w-full max-w-[500px]">
+              {/* <div className="bg-linear-to-br from-[#fffde7] to-[#fff3e0] border-l-4 border-[#FFB74D] shadow-lg rounded-xl p-5 mb-8 text-center lg:text-left w-full max-w-[500px]">
                 <div className="text-[#15803D] font-semibold text-lg mb-1 flex items-center justify-center lg:justify-start gap-2">
                   <i className="fas fa-check-circle"></i> স্টক সীমিত
                 </div>
@@ -106,7 +106,7 @@ export default function HeroSection() {
                 <div className="text-gray-700 font-medium text-lg">
                   ⚡ অফার শেষ হয়ে যাবে দ্রুত করুন
                 </div>
-              </div>
+              </div> */}
 
               {/* Main CTA Button */}
               <a 

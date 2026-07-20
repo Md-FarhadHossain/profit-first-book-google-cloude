@@ -9,7 +9,7 @@ import page5 from "@/public/fbpage-5.jpg"
 import page6 from "@/public/fbpage-6.jpg"
 import groupImage from "@/public/facebook-group.jpg"
 import Image from 'next/image';
-
+import OrderNowBtn from './orderNowBtn';
 
 
 // Data moved outside component for better performance
@@ -237,22 +237,8 @@ const PrivateCommunity = () => {
         </div>
 
         {/* CTA SECTION */}
-        <div className="mt-10 text-center">
-          
-          <div className="flex flex-col items-center gap-4">
-            <a 
-              href="#order" 
-              className="group relative inline-flex items-center justify-center gap-3 bg-linear-to-r from-orange-600 to-orange-500 hover:from-orange-700 hover:to-orange-600 text-white font-bold py-4 px-10 rounded-full text-lg shadow-xl shadow-orange-500/20 transform hover:-translate-y-1 transition-all duration-300 w-full md:w-auto"
-            >
-              <span>এখনই অর্ডার করে গ্রুপে জয়েন করুন</span>
-              <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
-              
-              {/* Button Shine Effect */}
-              <div className="absolute inset-0 rounded-full overflow-hidden">
-                <div className="absolute top-0 -left-full w-[50%] h-full bg-white/20 skew-x-25 group-hover:animate-[shimmer_1s_infinite]"></div>
-              </div>
-            </a>
-          </div>
+        <div className="mt-10 text-center w-full max-w-md mx-auto">
+          <OrderNowBtn text="এখনই অর্ডার করে গ্রুপে জয়েন করুন &rarr;" />
         </div>
       </div>
 

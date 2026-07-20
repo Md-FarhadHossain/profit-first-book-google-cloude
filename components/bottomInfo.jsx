@@ -2,6 +2,7 @@
 import React from 'react';
 import Image from "next/image";
 import heroBookCover from "@/components/assets/hero-book-cover.webp";
+import OrderNowBtn from './orderNowBtn';
 
 export default function HeroSection() {
   // Load Fonts and Icons
@@ -142,11 +143,11 @@ export default function HeroSection() {
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4 max-w-lg mx-auto">
             {/* Direct Call Button */}
             <a 
-              href="tel:01725755220" 
+              href="tel:01629786168" 
               className="flex items-center justify-center gap-2 w-full sm:w-auto bg-white border-2 border-[#ff6b00] text-[#ff6b00] hover:bg-[#ff6b00] hover:text-white py-3.5 px-6 rounded-xl text-lg font-bold shadow-sm hover:shadow-md transition-all duration-300 group"
             >
               <i className="fas fa-phone-alt group-hover:animate-bounce"></i>
-              01725755220
+              01629786168
             </a>
             
             {/* WhatsApp Button */}

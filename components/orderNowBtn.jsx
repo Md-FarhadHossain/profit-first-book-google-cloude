@@ -5,7 +5,7 @@ import React from 'react';
  * A high-urgency "Order Now" button component with active animations.
  * Features gradient animation, pulsing effect, and shimmer animation.
  */
-const OrderNowBtn = () => {
+const OrderNowBtn = ({ text = "এখনই অর্ডার করুন" }) => {
   return (
     <Link href='#order' className="relative inline-block w-full mt-4">
       {/* Pulsing glow effect */}
@@ -16,7 +16,7 @@ const OrderNowBtn = () => {
           relative
           w-full
           px-8 py-4
-          font-bold text-white text-3xl
+          font-bold text-white text-lg md:text-xl
           bg-linear-to-r from-red-500 via-red-600 to-orange-500
           rounded-lg
           shadow-lg
@@ -49,12 +49,12 @@ const OrderNowBtn = () => {
         
         {/* Button text with subtle bounce */}
         <span 
-          className="relative z-10"
+          className="relative z-10 flex items-center justify-center gap-2"
           style={{
             animation: 'textBounce 2s ease-in-out infinite'
           }}
         >
-          এখনই অর্ডার করুন
+          {text}
         </span>
       </button>
 

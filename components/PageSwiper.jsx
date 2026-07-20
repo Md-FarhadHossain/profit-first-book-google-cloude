@@ -142,7 +142,7 @@ export default function BookPreviewPage() {
       <div className=" bg-gray-100 flex flex-col items-center justify-center p-4 font-inter">
         <div className="text-center mb-6">
           <h1 className="text-4xl font-bold text-gray-900">সূচিপত্র ও কয়েকটি পৃষ্ঠা পরে দেখুন</h1>
-          <p className="text-lg text-gray-600">Swipe to see the next page</p>
+          {/* <p className="text-lg text-gray-600">Swipe to see the next page</p> */}
         </div>
         
         {/* এখানে সোয়াইপার কম্পোনেন্টটি ব্যবহার করা হয়েছে */}

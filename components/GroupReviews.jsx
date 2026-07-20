@@ -2,6 +2,7 @@
 import React, { useState } from 'react';
 import Image from 'next/image';
 import { ThumbsUp, Star, BadgeCheck, ChevronDown, ChevronUp } from 'lucide-react';
+import OrderNowBtn from './orderNowBtn';
 import r1 from "@/public/fb-group-review1.jpg"
 import r2 from "@/public/fb-group-review2.jpg"
 import r3 from "@/public/fb-group-review3.jpg"
@@ -136,13 +137,8 @@ const GroupReviews = () => {
         </div>
 
         {/* Bottom CTA nudge */}
-        <div className="text-center mt-14">
-          <a
-            href="#order"
-            className="inline-flex items-center gap-3 bg-gradient-to-r from-orange-600 to-orange-500 hover:from-orange-700 hover:to-orange-600 text-white font-bold py-4 px-10 rounded-full text-lg shadow-xl shadow-orange-500/25 hover:-translate-y-0.5 transition-all duration-300"
-          >
-            <span>বই অর্ডার করুন — গ্রুপে ঢুকুন</span>
-          </a>
+        <div className="text-center mt-14 w-full max-w-md mx-auto">
+          <OrderNowBtn text="বই অর্ডার করুন — গ্রুপে ঢুকুন" />
         </div>
       </div>
     </section>

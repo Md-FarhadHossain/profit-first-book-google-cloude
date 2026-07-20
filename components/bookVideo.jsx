@@ -172,16 +172,26 @@ export default function App() {
               onClick={togglePlayPause}
             >
               {/* YouTube Player Iframe */}
-              <div id="player" className="absolute top-0 left-0 w-full h-full pointer-events-none"></div>
+              <div id="player" className={`absolute top-0 left-0 w-full h-full pointer-events-none transition-opacity duration-300 ${isPlaying ? 'opacity-100' : 'opacity-0'}`}></div>
               
-              {/* Invisible Overlay for Click Interaction */}
-              <div className="absolute top-0 left-0 w-full h-full z-10 bg-transparent"></div>
+              {/* Custom Thumbnail Overlay to hide YouTube UI (Title, Logo) before playing */}
+              <div className={`absolute top-0 left-0 w-full h-full z-10 transition-opacity duration-300 ${isPlaying ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
+                <img 
+                  src="https://img.youtube.com/vi/f__152v8rfE/maxresdefault.jpg" 
+                  alt="Video Thumbnail" 
+                  className="w-full h-full object-cover"
+                />
+                <div className="absolute inset-0 bg-black/20"></div>
+              </div>
+              
+              {/* Invisible Overlay for Click Interaction (needed while playing) */}
+              <div className={`absolute top-0 left-0 w-full h-full z-20 bg-transparent ${isPlaying ? 'block' : 'hidden'}`}></div>
               
               {/* Optional: Subtle Play Icon indication when paused */}
               <div 
-                className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-20 h-20 bg-black/30 backdrop-blur-sm rounded-full flex items-center justify-center transition-opacity duration-300 pointer-events-none ${isPlaying ? 'opacity-0' : 'opacity-100'}`}
+                className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-20 h-20 bg-black/60 backdrop-blur-sm rounded-full flex items-center justify-center transition-opacity duration-300 pointer-events-none z-30 ${isPlaying ? 'opacity-0' : 'opacity-100'}`}
               >
-                 <div className="w-0 h-0 border-t-15 border-t-transparent border-l-25 border-l-white border-b-15 border-b-transparent ml-2"></div>
+                 <div className="w-0 h-0 border-t-[15px] border-t-transparent border-l-[25px] border-l-white border-b-[15px] border-b-transparent ml-2"></div>
               </div>
             </div>
 

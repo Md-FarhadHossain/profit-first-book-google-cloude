@@ -2873,9 +2873,18 @@ export default function App() {
             placeholder="Search by name, phone, or ID..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="inter-font w-full rounded-xl border border-gray-600 bg-gray-900 py-2.5 pl-10 pr-4 text-white placeholder-gray-500 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 transition-all text-sm"
+            className="inter-font w-full rounded-xl border border-gray-600 bg-gray-900 py-2.5 pl-10 pr-10 text-white placeholder-gray-500 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 transition-all text-sm"
           />
           <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-500" />
+          {searchTerm && (
+            <button
+              onClick={() => setSearchTerm("")}
+              className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-gray-400 hover:text-white hover:bg-gray-700/50 rounded-full transition-colors"
+              title="Clear search"
+            >
+              <X size={14} />
+            </button>
+          )}
         </div>
 
         {/* Date Picker + Actions + Rows */}

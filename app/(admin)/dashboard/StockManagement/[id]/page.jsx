@@ -446,6 +446,110 @@ export default function StockBatchCostPage({ params }) {
               )}
             </div>
           )}
+
+          {/* ── COST DISTRIBUTION CHARTS (Left Side) ─────────────────── */}
+          {!isEditing && breakdownItems.length > 0 && totalCost > 0 && (() => {
+            const COLORS = [
+              '#8b5cf6','#3b82f6','#10b981','#f59e0b','#ef4444',
+              '#ec4899','#06b6d4','#84cc16','#f97316','#a855f7','#14b8a6','#fb923c',
+            ];
+
+            const donutSlice = (startAngle, endAngle, r, cx, cy, innerR) => {
+              const toRad = (a) => (a - 90) * (Math.PI / 180);
+              const x1 = cx + r * Math.cos(toRad(startAngle)), y1 = cy + r * Math.sin(toRad(startAngle));
+              const x2 = cx + r * Math.cos(toRad(endAngle)),   y2 = cy + r * Math.sin(toRad(endAngle));
+              const xi1 = cx + innerR * Math.cos(toRad(endAngle)),   yi1 = cy + innerR * Math.sin(toRad(endAngle));
+              const xi2 = cx + innerR * Math.cos(toRad(startAngle)), yi2 = cy + innerR * Math.sin(toRad(startAngle));
+              const large = endAngle - startAngle > 180 ? 1 : 0;
+              return `M ${x1} ${y1} A ${r} ${r} 0 ${large} 1 ${x2} ${y2} L ${xi1} ${yi1} A ${innerR} ${innerR} 0 ${large} 0 ${xi2} ${yi2} Z`;
+            };
+
+            const MiniDonut = ({ items, total, title, centerLabel }) => {
+              const [hov, setHov] = React.useState(null);
+              const cx = 80, cy = 80, r = 70, innerR = 48;
+              let angle = 0;
+              const slices = items.map((item, i) => {
+                const pct = total > 0 ? item.value / total : 0;
+                const sweep = pct * 360;
+                const start = angle;
+                angle += sweep;
+                return { ...item, pct, start, end: angle, color: COLORS[i % COLORS.length] };
+              });
+              const active = hov !== null ? slices[hov] : null;
+
+              return (
+                <div className="flex flex-col items-center gap-4">
+                  <p className="text-xs font-bold text-gray-400 uppercase tracking-widest text-center">{title}</p>
+                  <svg width="160" height="160" viewBox="0 0 160 160">
+                    {slices.map((s, i) => (
+                      <path
+                        key={i}
+                        d={donutSlice(s.start, s.end, r, cx, cy, innerR)}
+                        fill={s.color}
+                        opacity={hov === null || hov === i ? 1 : 0.25}
+                        stroke="#0d1117"
+                        strokeWidth="2"
+                        className="cursor-pointer"
+                        onMouseEnter={() => setHov(i)}
+                        onMouseLeave={() => setHov(null)}
+                        style={{ transform: hov === i ? 'scale(1.04)' : 'scale(1)', transformOrigin: `${cx}px ${cy}px`, transition: 'transform 0.15s, opacity 0.15s' }}
+                      />
+                    ))}
+                    {active ? (
+                      <>
+                        <text x={cx} y={cy - 6} textAnchor="middle" style={{fontSize:'12px', fontWeight:700, fill: active.color}}>{(active.pct*100).toFixed(1)}%</text>
+                        <text x={cx} y={cx + 8} textAnchor="middle" style={{fontSize:'9px', fill:'#9ca3af'}}>{active.label.length > 12 ? active.label.slice(0,12) + '…' : active.label}</text>
+                      </>
+                    ) : (
+                      <>
+                        <text x={cx} y={cy - 5} textAnchor="middle" style={{fontSize:'9px', fill:'#6b7280', fontWeight:600}}>{centerLabel}</text>
+                        <text x={cx} y={cy + 13} textAnchor="middle" style={{fontSize:'12px', fill:'#ffffff', fontWeight:900}}>৳{(total/1000).toFixed(1)}k</text>
+                      </>
+                    )}
+                  </svg>
+                  {/* Mini legend */}
+                  <div className="w-full space-y-1 mt-2">
+                    {slices.map((s, i) => (
+                      <div
+                        key={i}
+                        className="flex items-center justify-between gap-2 cursor-pointer rounded px-2 py-1"
+                        style={{ backgroundColor: hov === i ? `${s.color}18` : 'transparent' }}
+                        onMouseEnter={() => setHov(i)}
+                        onMouseLeave={() => setHov(null)}
+                      >
+                        <div className="flex items-center gap-2 min-w-0">
+                          <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: s.color }} />
+                          <span className="text-xs text-gray-400 truncate">{s.label}</span>
+                        </div>
+                        <span className="text-xs font-bold shrink-0" style={{ color: s.color }}>{(s.pct*100).toFixed(1)}%</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              );
+            };
+
+            const itemsWithoutBook = breakdownItems.filter(i => i.label !== 'Book Price');
+            const totalWithoutBook = itemsWithoutBook.reduce((s, i) => s + i.value, 0);
+
+            return (
+              <div className="bg-gray-800/20 border border-gray-700/50 rounded-2xl p-6 mt-5">
+                <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-6 flex items-center gap-2">
+                  <PieChart size={16} className="text-violet-400" /> Cost Distribution Analysis
+                </p>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8 divide-y md:divide-y-0 md:divide-x divide-gray-700/40">
+                  <div className="pt-4 md:pt-0">
+                    <MiniDonut items={breakdownItems} total={totalCost} title="All Costs" centerLabel="TOTAL" />
+                  </div>
+                  {itemsWithoutBook.length > 0 && (
+                    <div className="pt-8 md:pt-0 pl-0 md:pl-8">
+                      <MiniDonut items={itemsWithoutBook} total={totalWithoutBook} title="Excl. Book" centerLabel="NO BOOK" />
+                    </div>
+                  )}
+                </div>
+              </div>
+            );
+          })()}
         </div>
 
         {/* ── Sticky Sidebar ─────────────────────────────────────────────── */}
@@ -532,25 +636,7 @@ export default function StockBatchCostPage({ params }) {
             </div>
           )}
 
-          {/* Breakdown list */}
-          {breakdownItems.length > 0 && (
-            <div className="bg-gray-800/40 border border-gray-700/50 rounded-2xl p-5">
-              <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">Breakdown</p>
-              {breakdownItems.map((item, i) => (
-                <div key={i} className="flex items-center justify-between py-1.5 border-b border-gray-700/30 last:border-0">
-                  <span className="flex items-center gap-2 text-xs text-gray-400">
-                    <ChevronRight size={10} className="text-gray-600" />
-                    {item.label}
-                  </span>
-                  <span className="text-xs font-semibold text-white">৳ {item.value.toLocaleString()}</span>
-                </div>
-              ))}
-              <div className="flex items-center justify-between pt-3 mt-1 border-t border-gray-600">
-                <span className="text-xs font-bold text-gray-300">Total</span>
-                <span className="text-xs font-black text-violet-400">৳ {totalCost.toLocaleString()}</span>
-              </div>
-            </div>
-          )}
+
         </div>
       </div>
     </div>

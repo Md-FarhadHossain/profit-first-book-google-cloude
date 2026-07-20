@@ -92,37 +92,38 @@ const PrivateCommunity = () => {
           </p> */}
         </div>
 
-        {/* CARDS SECTION (Flex Wrap for perfect centering of 5 items) */}
-        <div className="flex flex-wrap justify-center gap-2 md:gap-6">
+        {/* CARDS SECTION */}
+        <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-3 gap-3 md:gap-6">
           {entrepreneurs.map((item) => (
             <div 
               key={item.id} 
-              className="w-full md:w-[calc(50%-12px)] lg:w-[calc(33.33%-16px)] flex flex-col bg-white rounded-2xl border border-slate-100 shadow-lg shadow-slate-200/50 hover:shadow-xl hover:border-blue-200 transition-all duration-300 group"
+              className="flex flex-col bg-white rounded-2xl border border-slate-100 shadow-lg shadow-slate-200/50 hover:shadow-xl hover:border-blue-200 transition-all duration-300 group overflow-hidden"
             >
               {/* Card Header: Identity */}
-              <div className="p-5 flex items-start gap-4 border-b border-slate-50">
+              <div className="p-4 md:p-5 flex flex-col md:flex-row items-center md:items-start text-center md:text-left gap-3 md:gap-4 h-full">
                 <div className="relative shrink-0">
                   <Image 
                     src={item.pageLogo} 
                     alt={item.pageName} 
-                    className="w-24 h-24 md:w-16 md:h-16 rounded-full object-cover ring-2 ring-[#0866ff] shadow-md group-hover:scale-105 transition-transform duration-300"
+                    className="w-16 h-16 md:w-16 md:h-16 rounded-full object-cover ring-2 ring-[#0866ff] shadow-md group-hover:scale-105 transition-transform duration-300"
                   />
-                  <div className="absolute bottom-2 -right-1 bg-blue-600 text-white  rounded-full border-2 border-white">
-                    {/* <Facebook size={10} fill="currentColor" /> */}
-                    <BadgeCheck size={20} />
+                  <div className="absolute bottom-0 right-0 bg-blue-600 text-white rounded-full border-2 border-white">
+                    <BadgeCheck size={16} className="md:w-5 md:h-5" />
                   </div>
                 </div>
                 
-                <div className="flex-1 min-w-0">
-                  <h4 className="font-bold text-slate-900 text-base md:text-lg truncate leading-tight">
+                <div className="flex-1 min-w-0 flex flex-col items-center md:items-start justify-center w-full">
+                  <h4 className="font-bold text-slate-900 text-[15px] md:text-lg leading-tight w-full line-clamp-2 mb-1 px-1">
                     {item.pageName}
                   </h4>
-                  <p className="text-slate-500 text-xs uppercase tracking-wide font-medium mt-0.5 mb-2">
-                    {item.category}
-                  </p>
-                  <div className="inline-flex items-center gap-1 bg-blue-50 text-blue-700 px-2 py-0.5 rounded text-lg font-bold">
-                    <ThumbsUp size={20} />
-                    <span>{item.likes} Followers</span>
+                  {item.category && (
+                    <p className="text-slate-500 text-[11px] md:text-xs uppercase tracking-wide font-medium mb-2 truncate w-full">
+                      {item.category}
+                    </p>
+                  )}
+                  <div className="inline-flex items-center gap-1.5 bg-blue-50 text-blue-700 px-2.5 py-1 rounded-md text-[13px] md:text-sm font-bold mt-auto">
+                    <ThumbsUp size={15} className="md:w-4 md:h-4" />
+                    <span>{item.likes}</span>
                   </div>
                 </div>
               </div>   

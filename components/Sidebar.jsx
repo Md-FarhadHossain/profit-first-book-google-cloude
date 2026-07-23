@@ -13,7 +13,8 @@ import {
   ShoppingCart,
   HatGlasses,
   TrendingUp,
-  PackagePlus
+  PackagePlus,
+  Activity
 } from 'lucide-react';
 
 export default function Sidebar({ initialCollapsed = false }) {
@@ -53,6 +54,11 @@ export default function Sidebar({ initialCollapsed = false }) {
       label: 'Analytics', 
       path: '/dashboard/analytics', 
       icon: BarChart3 
+    },
+    {
+      label: 'Parcel Performance',
+      path: '/dashboard/parcel-performance',
+      icon: Activity
     },
     // 2. Added the new path here
     { 

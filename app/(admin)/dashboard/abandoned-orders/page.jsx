@@ -590,13 +590,6 @@ export default function PendingOrdersPage() {
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
            <div className="bg-gray-900 border border-gray-800 p-5 rounded-2xl flex items-center justify-between">
              <div>
-               <p className="text-gray-500 text-xs font-bold uppercase tracking-wider mb-1">Total</p>
-               <p className="text-3xl font-bold text-white">{stats.total}</p>
-             </div>
-             <div className="w-10 h-10 bg-blue-500/10 rounded-full flex items-center justify-center text-blue-500"><ShoppingBag size={20} /></div>
-           </div>
-           <div className="bg-gray-900 border border-gray-800 p-5 rounded-2xl flex items-center justify-between">
-             <div>
                <p className="text-gray-500 text-xs font-bold uppercase tracking-wider mb-1">Today</p>
                <p className="text-3xl font-bold text-white">{stats.today}</p>
              </div>
@@ -615,6 +608,13 @@ export default function PendingOrdersPage() {
                <p className="text-3xl font-bold text-white">{stats.thisMonth}</p>
              </div>
              <div className="w-10 h-10 bg-purple-500/10 rounded-full flex items-center justify-center text-purple-500"><Calendar size={20} /></div>
+           </div>
+           <div className="bg-gray-900 border border-gray-800 p-5 rounded-2xl flex items-center justify-between">
+             <div>
+               <p className="text-gray-500 text-xs font-bold uppercase tracking-wider mb-1">Total</p>
+               <p className="text-3xl font-bold text-white">{stats.total}</p>
+             </div>
+             <div className="w-10 h-10 bg-blue-500/10 rounded-full flex items-center justify-center text-blue-500"><ShoppingBag size={20} /></div>
            </div>
         </div>
 

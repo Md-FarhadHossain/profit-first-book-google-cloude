@@ -72,6 +72,8 @@ export async function GET(request) {
       userAgent: o.clientInfo?.userAgent || "",
       items: o.items || [],
       localTime: o.localTime,
+      status: o.status,
+      phoneCallStatus: o.phoneCallStatus,
       createdAt: (o.date && !o.date.includes('Z') && !o.date.includes('+')) ? o.date.replace(' ', 'T') + 'Z' : o.date,
       date: (o.date && !o.date.includes('Z') && !o.date.includes('+')) ? o.date.replace(' ', 'T') + 'Z' : o.date
     }));

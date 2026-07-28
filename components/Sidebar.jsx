@@ -55,16 +55,16 @@ export default function Sidebar({ initialCollapsed = false }) {
       path: '/dashboard/analytics', 
       icon: BarChart3 
     },
-    {
-      label: 'Parcel Performance',
-      path: '/dashboard/parcel-performance',
-      icon: Activity
-    },
     // 2. Added the new path here
     { 
       label: 'Abandoned Orders', 
       path: '/dashboard/abandoned-orders', 
       icon: ShoppingCart 
+    },
+    {
+      label: 'Parcel Performance',
+      path: '/dashboard/parcel-performance',
+      icon: Activity
     },
     { 
       label: 'Stock Management', 

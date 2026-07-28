@@ -6,7 +6,7 @@ import {
   XCircle, RotateCcw, Eye, X, User, Phone, Calendar, DollarSign,
   PhoneCall, PhoneOff, Check, Smartphone, Globe, Zap, 
   LayoutTemplate, Info, ShieldCheck, AlertCircle, ShoppingBag,
-  AlertTriangle, Share2, ArrowRightCircle
+  AlertTriangle, Share2, ArrowRightCircle, TrendingUp, BarChart2, Target, Users2
 } from 'lucide-react';
 import { UAParser } from 'ua-parser-js'; 
 import getAllOrders from '@/lib/getAllorders';
@@ -138,27 +138,35 @@ const ActionDropdown = ({ currentStatus, onStatusChange }) => {
 };
 
 // --- CONFIRMATION POPUP ---
-const ConfirmationModal = ({ isOpen, onClose, onConfirm, customerName }) => {
+const ConfirmationModal = ({ isOpen, onClose, onConfirm, customerName, isMigrating }) => {
     if (!isOpen) return null;
     return (
         <div className="fixed inset-0 z-60 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
             <div className="bg-gray-900 border border-gray-700 rounded-xl p-6 max-w-sm w-full shadow-2xl transform scale-100">
                 <div className="flex flex-col items-center text-center">
                     <div className="w-12 h-12 bg-green-500/10 rounded-full flex items-center justify-center text-green-500 mb-4">
-                        <ArrowRightCircle size={24} />
+                        <ArrowRightCircle size={24} className={isMigrating ? "animate-spin" : ""} />
                     </div>
-                    <h3 className="text-lg font-bold text-white mb-2">Migrate Order?</h3>
+                    <h3 className="text-lg font-bold text-white mb-2">{isMigrating ? "Migrating..." : "Migrate Order?"}</h3>
                     <p className="text-sm text-gray-400 mb-6">
-                        Are you sure you want to move <strong>{customerName}</strong>'s abandoned cart to the active orders list? 
-                        <br/><br/>
-                        <span className="text-xs text-gray-500">This will remove it from 'Abandoned' and create a real order.</span>
+                        {isMigrating ? (
+                          "Please wait while we migrate this order to the dashboard..."
+                        ) : (
+                          <>
+                            Are you sure you want to move <strong>{customerName}</strong>'s abandoned cart to the active orders list? 
+                            <br/><br/>
+                            <span className="text-xs text-gray-500">This will remove it from 'Abandoned' and create a real order.</span>
+                          </>
+                        )}
                     </p>
                     <div className="flex gap-3 w-full">
-                        <button onClick={onClose} className="flex-1 px-4 py-2 bg-gray-800 hover:bg-gray-700 text-gray-300 text-sm font-medium rounded-lg transition-colors">
+                        <button onClick={onClose} disabled={isMigrating} className="flex-1 px-4 py-2 bg-gray-800 hover:bg-gray-700 text-gray-300 text-sm font-medium rounded-lg transition-colors disabled:opacity-50">
                             Cancel
                         </button>
-                        <button onClick={onConfirm} className="flex-1 px-4 py-2 bg-green-600 hover:bg-green-500 text-white text-sm font-bold rounded-lg transition-colors">
-                            Yes, Migrate
+                        <button onClick={onConfirm} disabled={isMigrating} className="flex-1 px-4 py-2 bg-green-600 hover:bg-green-500 text-white text-sm font-bold rounded-lg transition-colors disabled:opacity-50 flex items-center justify-center gap-2">
+                            {isMigrating ? (
+                                <><span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></span> Migrating...</>
+                            ) : "Yes, Migrate"}
                         </button>
                     </div>
                 </div>
@@ -371,6 +379,8 @@ export default function PendingOrdersPage() {
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [showConfirmMigrate, setShowConfirmMigrate] = useState(false);
   const [orderToMigrate, setOrderToMigrate] = useState(null);
+  const [isMigrating, setIsMigrating] = useState(false);
+  const [notification, setNotification] = useState(null);
   
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -485,6 +495,7 @@ export default function PendingOrdersPage() {
     if (!orderToMigrate) return;
 
     try {
+        setIsMigrating(true);
         // 1. Prepare Payload: Map frontend "Abandoned" structure to backend "Active Order" structure
         // Based on your backend, it expects: { number, status, ... }
         const payload = {
@@ -521,13 +532,15 @@ export default function PendingOrdersPage() {
             });
             
             // 4. Cleanup UI
-            alert(`Order Migrated Successfully! New Order ID: ${createData.orderId}`);
+            setNotification({ type: 'success', message: `Order Migrated Successfully! New Order ID: ${createData.orderId}` });
+            setTimeout(() => setNotification(null), 4000);
             setShowConfirmMigrate(false);
             setOrderToMigrate(null);
             setSelectedOrder(null); // Close modal
             fetchOrders(); // Refresh list to remove the migrated item
         } else {
-            alert(`Migration Failed: ${createData.message || 'Unknown error'}`);
+            setNotification({ type: 'error', message: `Migration Failed: ${createData.message || 'Unknown error'}` });
+            setTimeout(() => setNotification(null), 4000);
             if(createData.reason === 'active_order_exists') {
                 setShowConfirmMigrate(false); // Close popup if it already exists
             }
@@ -535,7 +548,10 @@ export default function PendingOrdersPage() {
 
     } catch (error) {
         console.error("Migration error:", error);
-        alert("Server Error during migration.");
+        setNotification({ type: 'error', message: "Server Error during migration." });
+        setTimeout(() => setNotification(null), 4000);
+    } finally {
+        setIsMigrating(false);
     }
   };
 
@@ -553,16 +569,78 @@ export default function PendingOrdersPage() {
   const paginatedData = filteredOrders.slice((currentPage-1)*itemsPerPage, currentPage*itemsPerPage);
   const totalPages = Math.ceil(filteredOrders.length / itemsPerPage);
 
+  // --- ANALYTICS DATA ---
+  const analyticsData = useMemo(() => {
+    const total = orders.length;
+    if (total === 0) return null;
+
+    // Status breakdown
+    const statusCounts = {
+      Processing: orders.filter(o => o.status === 'Processing' || !o.status).length,
+      Cancelled: orders.filter(o => o.status === 'Cancelled').length,
+      Fake: orders.filter(o => o.status === 'Fake').length,
+      Duplicate: orders.filter(o => o.status === 'Duplicate').length,
+      Migrated: orders.filter(o => !!o.realOrder).length,
+    };
+
+    // Call status breakdown
+    const callCounts = {
+      Confirmed: orders.filter(o => o.callStatus === 'Confirmed').length,
+      'No Answer': orders.filter(o => o.callStatus === 'No Answer').length,
+      Pending: orders.filter(o => !o.callStatus || o.callStatus === 'Pending').length,
+    };
+
+    // Conversion rate (migrated to real orders)
+    const conversionRate = Math.round((statusCounts.Migrated / total) * 100);
+    const confirmationRate = Math.round((callCounts.Confirmed / total) * 100);
+    const cancelRate = Math.round((statusCounts.Cancelled / total) * 100);
+    const noAnswerRate = Math.round((callCounts['No Answer'] / total) * 100);
+
+    // Last 30 days daily counts for calendar heatmap
+    const today = new Date();
+    const dailyCounts = {};
+    for (let i = 29; i >= 0; i--) {
+      const d = new Date(today);
+      d.setDate(d.getDate() - i);
+      const key = d.toISOString().split('T')[0];
+      dailyCounts[key] = 0;
+    }
+    orders.forEach(o => {
+      const key = new Date(o.createdAt).toISOString().split('T')[0];
+      if (dailyCounts[key] !== undefined) dailyCounts[key]++;
+    });
+    const dailyEntries = Object.entries(dailyCounts);
+    const maxDaily = Math.max(...Object.values(dailyCounts), 1);
+
+    // Inside/Outside Dhaka
+    const insideDhaka = orders.filter(o => o.shipping === 'Inside Dhaka').length;
+    const outsideDhaka = orders.filter(o => o.shipping === 'Outside Dhaka').length;
+    const unknownShipping = total - insideDhaka - outsideDhaka;
+
+    return { total, statusCounts, callCounts, conversionRate, confirmationRate, cancelRate, noAnswerRate, dailyEntries, maxDaily, insideDhaka, outsideDhaka, unknownShipping };
+  }, [orders]);
+
   return (
     <div className="min-h-screen bg-black text-gray-200 font-sans selection:bg-blue-500/30">
        <style>{`.custom-scrollbar::-webkit-scrollbar { width: 6px; } .custom-scrollbar::-webkit-scrollbar-track { background: #111827; } .custom-scrollbar::-webkit-scrollbar-thumb { background: #374151; border-radius: 10px; }`}</style>
       
+       {/* NOTIFICATION TOAST */}
+       {notification && (
+         <div className={`fixed top-4 left-1/2 -translate-x-1/2 z-[100] px-6 py-3 rounded-full flex items-center gap-2 shadow-2xl animate-in slide-in-from-top-5 duration-300 ${
+           notification.type === 'success' ? 'bg-green-500 text-white' : 'bg-red-500 text-white'
+         }`}>
+           {notification.type === 'success' ? <CheckCircle size={18} /> : <AlertTriangle size={18} />}
+           <span className="font-medium text-sm">{notification.message}</span>
+         </div>
+       )}
+
       {/* MIGRATION CONFIRMATION MODAL */}
       <ConfirmationModal 
         isOpen={showConfirmMigrate}
         onClose={() => setShowConfirmMigrate(false)}
         onConfirm={proceedWithMigration}
         customerName={orderToMigrate?.customer?.name || 'Customer'}
+        isMigrating={isMigrating}
       />
 
       {selectedOrder && (
@@ -664,8 +742,9 @@ export default function PendingOrdersPage() {
                  ) : (
                    paginatedData.map((order) => {
                      const hasRealOrder = !!order.realOrder;
+                     const isCancelled = order.status === 'Cancelled';
                      return (
-                       <tr key={order._id} className={`group transition-all duration-200 ${hasRealOrder ? 'bg-[#151c2e] hover:bg-[#1a233a] opacity-80' : 'bg-transparent hover:bg-gray-800/40'}`}>
+                       <tr key={order._id} className={`group transition-all duration-200 ${hasRealOrder ? 'bg-[#151c2e] hover:bg-[#1a233a] opacity-80' : isCancelled ? 'bg-red-950/20 shadow-[inset_4px_0_0_0_#ef4444] hover:bg-red-900/10' : 'bg-transparent hover:bg-gray-800/40'}`}>
                          <td className="py-4 px-6">
                            <div className="flex items-center gap-4">
                              <div className="flex flex-col gap-1.5 min-w-[120px]">
@@ -756,195 +835,142 @@ export default function PendingOrdersPage() {
               return (
                 <div
                   key={order._id}
-                  className={`rounded-2xl border overflow-hidden transition-all active:scale-[0.99] ${
+                  onClick={() => setSelectedOrder(order)}
+                  className={`flex flex-col gap-0 active:scale-[0.99] transition-transform relative overflow-hidden rounded-2xl cursor-pointer ${
                     hasRealOrder
-                      ? 'bg-gradient-to-br from-green-950/40 to-[#111827] border-green-500/30 shadow-lg shadow-green-900/10'
-                      : 'bg-gradient-to-br from-[#1a2236] to-[#111827] border-gray-700/60 shadow-md'
+                      ? "bg-indigo-900/40 border border-indigo-500/80 shadow-[0_4px_20px_rgba(99,102,241,0.25)] ring-1 ring-indigo-500/50 z-10"
+                      : order.status === "Cancelled"
+                        ? "bg-red-950/20 border border-red-500/20 shadow-[0_2px_12px_rgba(239,68,68,0.05)]"
+                        : "bg-gray-800/90 border border-gray-700/50 shadow-md"
                   }`}
                 >
-                  {/* ── TOP BANNER: Already Ordered ── */}
-                  {hasRealOrder && (() => {
-                    const s = order.realOrder.status;
-                    const statusPill = {
-                      Cancelled:  { bg: 'bg-red-600',     icon: <XCircle size={11} />,   label: 'Cancelled'  },
-                      Delivered:  { bg: 'bg-green-600',   icon: <CheckCircle size={11}/>, label: 'Delivered'  },
-                      Shipped:    { bg: 'bg-purple-600',  icon: <Truck size={11} />,      label: 'Shipped'    },
-                      Returned:   { bg: 'bg-orange-600',  icon: <RotateCcw size={11} />,  label: 'Returned'   },
-                      Processing: { bg: 'bg-blue-600',    icon: <CircleDot size={11} />,  label: 'Processing' },
-                      Fake:       { bg: 'bg-gray-600',    icon: <XCircle size={11} />,    label: 'Fake'       },
-                    }[s] || { bg: 'bg-gray-600', icon: <CircleDot size={11} />, label: s };
-                    return (
-                      <div className="px-4 pt-3 pb-2 bg-green-500/10 border-b border-green-500/20 flex items-center gap-2">
-                        <CheckCircle size={13} className="text-green-400 shrink-0" />
-                        <span className="text-[11px] font-bold text-green-400 uppercase tracking-wider">Already Ordered —</span>
-                        <span className={`inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-full text-white ${statusPill.bg}`}>
-                          {statusPill.icon}
-                          {statusPill.label}
-                        </span>
-                      </div>
-                    );
-                  })()}
-
-
-                  {/* ── CARD HEADER ── */}
+                  {/* ── Card Header ── */}
                   <div className="px-4 pt-4 pb-3 flex items-start gap-3">
-                    {/* Avatar */}
-                    <div className={`w-11 h-11 rounded-full flex items-center justify-center text-base font-black shrink-0 ${
-                      hasRealOrder
-                        ? 'bg-green-500/20 text-green-300 border-2 border-green-500/40'
-                        : (order.customer?.name && order.customer.name !== 'Guest')
-                          ? 'bg-gradient-to-br from-blue-600 to-indigo-700 text-white border-2 border-blue-500/40 shadow-md shadow-blue-900/30'
-                          : 'bg-gray-700/80 text-gray-400 border-2 border-gray-600/50'
+                    {/* Left: Avatar circle */}
+                    <div className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold shrink-0 ${
+                      hasRealOrder ? 'bg-indigo-500/20 text-indigo-300 border border-indigo-500/30'
+                      : 'bg-gray-700 text-gray-300 border border-gray-600'
                     }`}>
-                      {(order.customer?.name && order.customer.name !== 'Guest')
-                        ? order.customer.name.trim().charAt(0).toUpperCase()
-                        : <User size={18} />
-                      }
+                      {(order.customer?.name && order.customer.name !== 'Guest' ? order.customer.name : '?').charAt(0).toUpperCase()}
                     </div>
 
-                    {/* Name + Phone */}
+                    {/* Middle: Name + Phone */}
                     <div className="flex-1 min-w-0">
-                      <p className="text-white font-bold text-[15px] leading-tight">
-                        {(order.customer?.name && order.customer.name !== 'Guest')
-                          ? order.customer.name
-                          : <span className="text-gray-500 font-medium italic text-sm">Unknown Guest</span>
-                        }
-                      </p>
-                      {order.customer?.phone && order.customer.phone !== 'N/A' ? (
-                        <a
-                          href={`tel:${order.customer.phone}`}
-                          className="inline-flex items-center gap-1.5 mt-1 text-[13px] text-blue-400 font-semibold hover:text-blue-300 transition-colors"
-                        >
-                          <Phone size={12} className="shrink-0" />
-                          {order.customer.phone}
-                        </a>
-                      ) : (
-                        <span className="inline-flex items-center gap-1.5 mt-1 text-xs text-gray-600 italic">
-                          <Phone size={11} /> No phone number
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="text-white font-semibold text-sm leading-tight truncate max-w-[170px]">
+                          {(order.customer?.name && order.customer.name !== 'Guest') ? order.customer.name : <span className="text-gray-500 font-medium italic text-sm">Unknown Guest</span>}
                         </span>
-                      )}
+                        {/* Status pill inline with name */}
+                        {hasRealOrder && (
+                          <span className="inline-flex items-center gap-1 text-[9px] font-bold px-1.5 py-0.5 rounded-full shrink-0 text-indigo-300 bg-indigo-500/20 border border-indigo-500/30">
+                            <CheckCircle size={8} /> Ordered
+                          </span>
+                        )}
+                      </div>
+                      <a
+                        href={`tel:${order.customer?.phone || 'N/A'}`}
+                        onClick={(e) => { e.stopPropagation(); }}
+                        className="flex items-center gap-1.5 mt-1 text-xs text-blue-400 font-medium hover:text-blue-300 w-fit"
+                      >
+                        <Phone size={11} className="shrink-0" />
+                        <span>{order.customer?.phone || 'N/A'}</span>
+                      </a>
                     </div>
 
-                    {/* Time + View button */}
+                    {/* Right: Time + Actions */}
                     <div className="flex flex-col items-end gap-2 shrink-0">
-                      <div className="flex items-center gap-1 text-[11px] text-gray-500 bg-gray-800/70 rounded-full px-2 py-0.5 border border-gray-700/50">
-                        <Clock size={10} />
+                      <div className="flex items-center gap-1 text-[10px] text-gray-500">
+                        <Clock size={9} />
                         <span>{formatTimeAgo(order.createdAt)}</span>
                       </div>
-                      <button
-                        onClick={() => setSelectedOrder(order)}
-                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-blue-600/20 text-blue-400 hover:bg-blue-600 hover:text-white transition-all border border-blue-500/30 text-[11px] font-bold"
-                      >
-                        <Eye size={13} /> View
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* ── DIVIDER ── */}
-                  <div className="mx-4 h-px bg-gray-700/40" />
-
-                  {/* ── CART INFO: Amount + Steadfast ── */}
-                  <div className="px-4 py-3 flex items-center justify-between gap-3">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      {order.totalValue ? (
-                        <span className="text-white font-black text-lg">{order.totalValue} ৳</span>
-                      ) : (
-                        <span className="text-gray-500 text-sm font-medium italic">No price</span>
-                      )}
-                      {order.shipping && (
-                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-orange-500/15 text-orange-400 border border-orange-500/20">
-                          {order.shipping}
-                        </span>
-                      )}
-                    </div>
-                    <SteadfastPill phone={order.customer?.phone} />
-                  </div>
-
-                  {/* ── ADDRESS (conditional) ── */}
-                  {order.address && order.address !== 'N/A' && (
-                    <div className="px-4 pb-3">
-                      <div className="flex items-start gap-2 text-[11px] text-gray-400 bg-gray-800/50 rounded-xl px-3 py-2 border border-gray-700/40">
-                        <MapPin size={11} className="shrink-0 text-gray-500 mt-0.5" />
-                        <span className="leading-relaxed line-clamp-2">{order.address}</span>
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={(e) => { e.stopPropagation(); setSelectedOrder(order); }}
+                          className="p-1.5 rounded-lg transition-all border bg-gray-700/80 border-gray-600/60 text-gray-400 hover:text-white hover:bg-blue-600 hover:border-blue-500 hover:shadow-[0_0_8px_rgba(37,99,235,0.4)]"
+                          title="View Details"
+                        >
+                          <Eye size={13} />
+                        </button>
                       </div>
                     </div>
-                  )}
+                  </div>
 
-                  {/* ── STATUS CONTROLS ── */}
-                  <div className="px-4 pb-3 grid grid-cols-2 gap-2">
-                    <div className="flex flex-col gap-1">
-                      <span className="text-[9px] text-gray-500 font-bold uppercase tracking-wider pl-1">Call Status</span>
-                      {hasRealOrder ? (
-                        <span className="text-xs text-gray-500 italic px-1">Handled</span>
-                      ) : (
-                        <div className="relative">
-                          <select
-                            value={order.callStatus || 'Pending'}
-                            onChange={(e) => handleCallStatusUpdate(order._id, e.target.value)}
-                            className={`appearance-none w-full rounded-xl border py-2.5 pl-3 pr-7 text-xs font-bold focus:outline-none cursor-pointer transition-all ${
-                              order.callStatus === 'Confirmed' ? 'border-green-500/50 bg-green-500/15 text-green-400' :
-                              order.callStatus === 'No Answer' ? 'border-red-500/50 bg-red-500/15 text-red-400' :
-                              'border-yellow-500/50 bg-yellow-500/15 text-yellow-400'
-                            }`}
-                          >
-                            {CALL_OPTIONS.map(o => <option key={o.value} value={o.value} className="bg-gray-900 text-white">{o.label}</option>)}
-                          </select>
-                          <ChevronDown size={11} className="absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none opacity-60" />
-                        </div>
-                      )}
+                  {/* ── Address + Location row ── */}
+                  <div className="px-4 pb-3 flex items-center justify-between gap-2 w-full min-w-0">
+                    <div className="flex items-center gap-1.5 min-w-0 flex-1">
+                      <MapPin size={11} className={`shrink-0 ${order.shipping === 'Inside Dhaka' ? 'text-teal-400' : 'text-orange-400'}`} />
+                      <span className="text-gray-400 text-[11px] truncate flex-1 min-w-0 leading-tight pr-1">
+                        {order.address && order.address !== 'N/A' ? order.address : 'Address N/A'}
+                      </span>
                     </div>
-                    <div className="flex flex-col gap-1">
-                      <span className="text-[9px] text-gray-500 font-bold uppercase tracking-wider pl-1">Order Status</span>
+                    <span className={`text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded border shrink-0 min-w-max ${
+                      order.shipping === 'Inside Dhaka' ? 'border-teal-500/30 bg-teal-500/10 text-teal-300'
+                      : 'border-orange-500/30 bg-orange-500/10 text-orange-300'
+                    }`}>
+                      {order.shipping === 'Inside Dhaka' ? 'INSIDE DHAKA' : order.shipping === 'Outside Dhaka' ? 'OUTSIDE DHAKA' : (order.shipping || 'N/A').toUpperCase()}
+                    </span>
+                  </div>
+
+                  {/* ── Delivery History row ── */}
+                  <div className="px-4 pb-3 flex items-center justify-between gap-2 w-full min-w-0">
+                     <div className="text-[10px] text-gray-500 uppercase tracking-widest font-semibold flex items-center gap-1">
+                       <ShieldCheck size={10} className="text-gray-400" />
+                       Record
+                     </div>
+                     <SteadfastPill phone={order.customer?.phone} />
+                  </div>
+
+                  {/* ── Actions row ── */}
+                  <div
+                    className="px-3 py-2.5 bg-gray-900/50 border-t border-gray-700/40 flex items-center gap-2"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    {/* Status badge */}
+                    {hasRealOrder ? (
+                       <span className="text-[10px] text-gray-500 font-medium italic">Handled ({order.realOrder?.status})</span>
+                    ) : (
+                       <div className="relative">
+                         <select
+                           value={order.status || 'Processing'}
+                           onChange={(e) => handleStatusUpdate(order._id, e.target.value)}
+                           className={`appearance-none rounded-md pl-2.5 pr-6 py-1 text-xs font-medium border focus:outline-none cursor-pointer transition-all ${
+                             order.status === 'Processing' ? 'bg-blue-500/10 text-blue-400 border-blue-500/20' :
+                             order.status === 'Cancelled' ? 'bg-red-500/10 text-red-400 border-red-500/20' :
+                             order.status === 'Fake' ? 'bg-orange-500/10 text-orange-400 border-orange-500/20' :
+                             'bg-gray-500/10 text-gray-400 border-gray-500/20'
+                           }`}
+                         >
+                           <option value="Processing" className="bg-gray-900 text-white">Processing</option>
+                           <option value="Cancelled" className="bg-gray-900 text-white">Cancel</option>
+                           <option value="Fake" className="bg-gray-900 text-white">Fake</option>
+                           <option value="Duplicate" className="bg-gray-900 text-white">Duplicate</option>
+                         </select>
+                         <ChevronDown size={10} className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none opacity-60" />
+                       </div>
+                    )}
+
+                    {/* Call status – takes remaining space */}
+                    <div className="ml-auto">
                       {hasRealOrder ? (
-                        <span className="text-xs text-gray-500 italic px-1">Handled</span>
+                         <span className="text-[10px] text-gray-500 font-medium italic">N/A</span>
                       ) : (
                         <div className="relative">
-                          <select
-                            value={order.status || 'Processing'}
-                            onChange={(e) => handleStatusUpdate(order._id, e.target.value)}
-                            className={`appearance-none w-full rounded-xl border py-2.5 pl-3 pr-7 text-xs font-bold focus:outline-none cursor-pointer transition-all ${
-                              order.status === 'Processing' ? 'border-blue-500/50 bg-blue-500/15 text-blue-400' :
-                              order.status === 'Cancelled' ? 'border-red-500/50 bg-red-500/15 text-red-400' :
-                              order.status === 'Fake' ? 'border-orange-500/50 bg-orange-500/15 text-orange-400' :
-                              'border-gray-500/50 bg-gray-500/15 text-gray-400'
-                            }`}
-                          >
-                            <option value="Processing" className="bg-gray-900 text-white">Processing</option>
-                            <option value="Cancelled" className="bg-gray-900 text-white">Cancel</option>
-                            <option value="Fake" className="bg-gray-900 text-white">Fake</option>
-                            <option value="Duplicate" className="bg-gray-900 text-white">Duplicate</option>
-                          </select>
-                          <ChevronDown size={11} className="absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none opacity-60" />
-                        </div>
+                           <select
+                             value={order.callStatus || 'Pending'}
+                             onChange={(e) => handleCallStatusUpdate(order._id, e.target.value)}
+                             className={`appearance-none w-28 rounded-md border py-1 pl-2.5 pr-6 text-xs font-medium shadow-sm focus:outline-none transition-colors cursor-pointer ${
+                               order.callStatus === 'Confirmed' ? 'border-green-500/50 bg-green-500/20 text-green-400' :
+                               order.callStatus === 'No Answer' ? 'border-red-500/50 bg-red-500/20 text-red-400' :
+                               'border-yellow-500/50 bg-yellow-500/20 text-yellow-400'
+                             }`}
+                           >
+                             {CALL_OPTIONS.map(o => <option key={o.value} value={o.value} className="bg-gray-900 text-white">{o.label}</option>)}
+                           </select>
+                           <ChevronDown size={10} className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none opacity-60" />
+                         </div>
                       )}
                     </div>
                   </div>
-
-                  {/* ── QUICK ACTION BUTTONS ── */}
-                  {!hasRealOrder && order.customer?.phone && order.customer.phone !== 'N/A' && (
-                    <div className="px-4 pb-4 flex gap-2">
-                      <a
-                        href={`tel:${order.customer.phone}`}
-                        className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl bg-green-600/20 text-green-400 border border-green-500/30 text-xs font-bold hover:bg-green-600 hover:text-white transition-all active:scale-[0.97]"
-                      >
-                        <PhoneCall size={14} /> Call
-                      </a>
-                      <a
-                        href={`https://wa.me/${order.customer.phone?.replace(/[^0-9]/g, '')}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl bg-emerald-700/20 text-emerald-400 border border-emerald-500/30 text-xs font-bold hover:bg-emerald-600 hover:text-white transition-all active:scale-[0.97]"
-                      >
-                        <Share2 size={14} /> WhatsApp
-                      </a>
-                      <button
-                        onClick={() => setSelectedOrder(order)}
-                        className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl bg-indigo-600/20 text-indigo-400 border border-indigo-500/30 text-xs font-bold hover:bg-indigo-600 hover:text-white transition-all active:scale-[0.97]"
-                      >
-                        <Eye size={14} /> Detail
-                      </button>
-                    </div>
-                  )}
                 </div>
               );
             })
@@ -965,6 +991,224 @@ export default function PendingOrdersPage() {
             </div>
           )}
         </div>
+
+      {/* ═══════════════════════════════════════════════════ */}
+      {/* ANALYTICS SECTION */}
+      {/* ═══════════════════════════════════════════════════ */}
+      {analyticsData && !loading && (
+        <div className="mt-20 pt-10 border-t border-gray-800/60 space-y-8">
+          <div className="flex items-center gap-3 mb-4 px-2">
+            <div className="p-2 bg-blue-500/10 rounded-lg border border-blue-500/20">
+               <BarChart2 size={24} className="text-blue-400" />
+            </div>
+            <div>
+               <h2 className="text-2xl font-bold text-white tracking-tight">Abandoned Order Analytics</h2>
+               <p className="text-sm text-gray-500 mt-0.5">Based on <span className="text-white font-medium">{analyticsData.total}</span> total records</p>
+            </div>
+          </div>
+
+          {/* ── ROW 1: KPI Cards ── */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+            {[
+              { label: 'Conversion Rate', value: `${analyticsData.conversionRate}%`, sub: `${analyticsData.statusCounts.Migrated} migrated`, icon: <Target size={20} />, color: 'text-emerald-400', bg: 'bg-emerald-500/10' },
+              { label: 'Confirmed Calls', value: `${analyticsData.confirmationRate}%`, sub: `${analyticsData.callCounts.Confirmed} confirmed`, icon: <CheckCircle size={20} />, color: 'text-blue-400', bg: 'bg-blue-500/10' },
+              { label: 'No Answer Rate', value: `${analyticsData.noAnswerRate}%`, sub: `${analyticsData.callCounts['No Answer']} unreachable`, icon: <PhoneOff size={20} />, color: 'text-rose-400', bg: 'bg-rose-500/10' },
+              { label: 'Cancel Rate', value: `${analyticsData.cancelRate}%`, sub: `${analyticsData.statusCounts.Cancelled} cancelled`, icon: <XCircle size={20} />, color: 'text-red-400', bg: 'bg-red-500/10' },
+            ].map((kpi, i) => (
+              <div key={i} className="bg-gray-900 border border-gray-800 rounded-2xl p-6 flex flex-col gap-4">
+                <div className={`w-12 h-12 rounded-xl ${kpi.bg} flex items-center justify-center ${kpi.color}`}>{kpi.icon}</div>
+                <div>
+                  <p className="text-3xl font-black text-white tracking-tight">{kpi.value}</p>
+                  <p className="text-sm font-medium text-gray-400 mt-1">{kpi.label}</p>
+                  <p className="text-xs text-gray-500 mt-1">{kpi.sub}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* ── ROW 2: Status Breakdown + Call Breakdown + Shipping ── */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+            {/* Status Breakdown Bar Chart */}
+            <div className="bg-gray-900 border border-gray-800 rounded-3xl p-8 flex flex-col justify-between">
+              <h3 className="text-base font-bold text-white mb-6 flex items-center gap-2"><CircleDot size={18} className="text-blue-400" /> Order Status Breakdown</h3>
+              <div className="space-y-5">
+                {[
+                  { label: 'Processing', count: analyticsData.statusCounts.Processing, color: 'bg-blue-500', text: 'text-blue-400' },
+                  { label: 'Cancelled', count: analyticsData.statusCounts.Cancelled, color: 'bg-red-500', text: 'text-red-400' },
+                  { label: 'Migrated', count: analyticsData.statusCounts.Migrated, color: 'bg-emerald-500', text: 'text-emerald-400' },
+                  { label: 'Fake', count: analyticsData.statusCounts.Fake, color: 'bg-orange-500', text: 'text-orange-400' },
+                  { label: 'Duplicate', count: analyticsData.statusCounts.Duplicate, color: 'bg-gray-500', text: 'text-gray-400' },
+                ].map(item => (
+                  <div key={item.label} className="group">
+                    <div className="flex justify-between text-sm mb-2">
+                      <span className={`font-medium ${item.text}`}>{item.label}</span>
+                      <span className="text-gray-300 font-semibold">{item.count} <span className="text-gray-500 font-normal ml-1">({analyticsData.total > 0 ? Math.round(item.count / analyticsData.total * 100) : 0}%)</span></span>
+                    </div>
+                    <div className="h-2.5 bg-gray-800/80 rounded-full overflow-hidden">
+                      <div
+                        className={`h-full ${item.color} rounded-full transition-all duration-1000 ease-out`}
+                        style={{ width: `${analyticsData.total > 0 ? (item.count / analyticsData.total * 100) : 0}%` }}
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Call Status Breakdown */}
+            <div className="bg-gray-900 border border-gray-800 rounded-3xl p-8">
+              <h3 className="text-base font-bold text-white mb-8 flex items-center gap-2"><Phone size={18} className="text-purple-400" /> Call Status Breakdown</h3>
+              {/* SVG Donut Chart */}
+              <div className="flex flex-col sm:flex-row items-center gap-8 justify-center h-[calc(100%-4rem)]">
+                {(() => {
+                  const segments = [
+                    { label: 'Confirmed', count: analyticsData.callCounts.Confirmed, color: '#34d399' },
+                    { label: 'No Answer', count: analyticsData.callCounts['No Answer'], color: '#f43f5e' },
+                    { label: 'Pending', count: analyticsData.callCounts.Pending, color: '#facc15' },
+                  ];
+                  const total = analyticsData.total;
+                  const r = 50, cx = 60, cy = 60, stroke = 18;
+                  const circumference = 2 * Math.PI * r;
+                  let offset = 0;
+                  return (
+                    <>
+                      <svg viewBox="0 0 120 120" className="w-40 h-40 shrink-0 -rotate-90 drop-shadow-lg">
+                        {segments.map((seg, i) => {
+                          const pct = total > 0 ? seg.count / total : 0;
+                          const dash = pct * circumference;
+                          const gap = circumference - dash;
+                          const el = (
+                            <circle
+                              key={i}
+                              cx={cx} cy={cy} r={r}
+                              fill="none"
+                              stroke={seg.color}
+                              strokeWidth={stroke}
+                              strokeDasharray={`${dash} ${gap}`}
+                              strokeDashoffset={-offset * circumference}
+                              strokeLinecap="round"
+                              opacity="0.9"
+                              className="transition-all duration-1000 ease-out hover:stroke-width-[22px] cursor-pointer"
+                            />
+                          );
+                          offset += pct;
+                          return el;
+                        })}
+                        <circle cx={cx} cy={cy} r={r - stroke/2 - 4} fill="#111827" />
+                        <text x="60" y="65" textAnchor="middle" fill="#fff" fontSize="20" fontWeight="bold" transform="rotate(90 60 60)">
+                          {total}
+                        </text>
+                      </svg>
+                      <div className="flex flex-col gap-4 w-full sm:w-auto">
+                        {segments.map(seg => (
+                          <div key={seg.label} className="flex items-center gap-3">
+                            <span className="w-3.5 h-3.5 rounded-full shrink-0 shadow-sm" style={{ background: seg.color }} />
+                            <span className="text-sm font-medium text-gray-300">{seg.label}</span>
+                            <span className="text-sm font-bold text-white ml-auto">{seg.count}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </>
+                  );
+                })()}
+              </div>
+            </div>
+
+            {/* Shipping Area Breakdown */}
+            <div className="bg-gray-900 border border-gray-800 rounded-3xl p-8 flex flex-col justify-between">
+              <h3 className="text-base font-bold text-white mb-6 flex items-center gap-2"><MapPin size={18} className="text-teal-400" /> Geographic Distribution</h3>
+              <div className="space-y-4">
+                {[
+                  { label: 'Inside Dhaka', count: analyticsData.insideDhaka, color: 'bg-teal-500', text: 'text-teal-400', border: 'border-teal-500/30' },
+                  { label: 'Outside Dhaka', count: analyticsData.outsideDhaka, color: 'bg-orange-500', text: 'text-orange-400', border: 'border-orange-500/30' },
+                  { label: 'Unknown', count: analyticsData.unknownShipping, color: 'bg-gray-600', text: 'text-gray-400', border: 'border-gray-600/30' },
+                ].map(item => (
+                  <div key={item.label} className={`flex items-center gap-4 p-4 rounded-2xl border ${item.border} bg-gray-800/30 hover:bg-gray-800/60 transition-colors`}>
+                    <span className={`w-3 h-3 rounded-full ${item.color} shrink-0`} />
+                    <span className={`text-sm font-medium flex-1 ${item.text}`}>{item.label}</span>
+                    <span className="text-sm font-bold text-white">{item.count}</span>
+                    <span className="text-xs text-gray-500 ml-1">({analyticsData.total > 0 ? Math.round(item.count / analyticsData.total * 100) : 0}%)</span>
+                  </div>
+                ))}
+              </div>
+              <div className="mt-6 pt-5 border-t border-gray-800/60 flex items-center justify-between">
+                <span className="text-sm text-gray-400 font-medium">Total Tracked</span>
+                <span className="text-lg font-bold text-white">{analyticsData.total}</span>
+              </div>
+            </div>
+          </div>
+
+          {/* ── ROW 3: 30-Day Activity Heatmap ── */}
+          <div className="bg-gray-900 border border-gray-800 rounded-3xl p-8">
+            <div className="flex items-center justify-between mb-8">
+              <h3 className="text-base font-bold text-white flex items-center gap-2"><TrendingUp size={18} className="text-indigo-400" /> 30-Day Activity Heatmap</h3>
+              <span className="text-xs font-medium text-indigo-300 bg-indigo-500/10 px-3 py-1 rounded-full border border-indigo-500/20">Last 30 Days</span>
+            </div>
+            <div className="flex items-end gap-1.5 h-32 relative">
+              {/* Background horizontal lines for reference */}
+              <div className="absolute inset-0 flex flex-col justify-between pointer-events-none opacity-20">
+                 <div className="border-t border-gray-600 w-full"></div>
+                 <div className="border-t border-gray-600 w-full"></div>
+                 <div className="border-t border-gray-600 w-full"></div>
+                 <div className="border-t border-gray-600 w-full"></div>
+              </div>
+
+              {analyticsData.dailyEntries.map(([date, count]) => {
+                const ratio = count / analyticsData.maxDaily;
+                const d = new Date(date);
+                const label = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+                // Make colors a bit brighter
+                const opacity = count === 0 ? 0.08 : 0.2 + ratio * 0.8;
+                return (
+                  <div key={date} className="flex-1 flex flex-col items-center gap-1 group relative z-10" title={`${label}: ${count} orders`}>
+                    <div
+                      className="w-full rounded-t-md transition-all duration-300 hover:opacity-90 cursor-crosshair"
+                      style={{
+                        height: `${count === 0 ? 4 : Math.max(8, ratio * 128)}px`,
+                        background: count === 0
+                          ? 'rgba(99,102,241,0.08)'
+                          : `rgba(99,102,241,${opacity})`,
+                        border: count > 0 ? '1px solid rgba(99,102,241,0.5)' : '1px solid rgba(99,102,241,0.1)'
+                      }}
+                    />
+                    {/* Tooltip on hover */}
+                    <div className="absolute -top-10 left-1/2 -translate-x-1/2 hidden group-hover:flex items-center gap-1.5 bg-gray-800 text-white text-xs px-3 py-1.5 rounded-lg whitespace-nowrap z-20 border border-gray-600 shadow-xl font-medium">
+                      <span className="text-gray-400">{label}:</span> <span>{count} orders</span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            <div className="flex justify-between mt-4">
+              <span className="text-xs font-medium text-gray-500">{analyticsData.dailyEntries[0]?.[0] ? new Date(analyticsData.dailyEntries[0][0]).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : ''}</span>
+              <span className="text-xs font-medium text-gray-500">Today</span>
+            </div>
+          </div>
+
+          {/* ── ROW 4: Action Insight Summary ── */}
+          <div className="bg-gray-900 border border-gray-800 rounded-3xl p-8">
+            <h3 className="text-base font-bold text-white mb-6 flex items-center gap-2"><Users2 size={18} className="text-indigo-400" /> Actionable Insights</h3>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div className="bg-[#151c2e] border border-gray-800/80 rounded-2xl p-6">
+                <p className="text-xs text-gray-400 font-bold uppercase tracking-widest mb-2">Needs Follow-up</p>
+                <p className="text-4xl font-black text-amber-400 tracking-tight">{analyticsData.callCounts.Pending}</p>
+                <p className="text-sm text-gray-500 mt-2">Orders with pending calls — priority for outreach</p>
+              </div>
+              <div className="bg-[#151c2e] border border-gray-800/80 rounded-2xl p-6">
+                <p className="text-xs text-gray-400 font-bold uppercase tracking-widest mb-2">Ready to Migrate</p>
+                <p className="text-4xl font-black text-emerald-400 tracking-tight">{Math.max(0, analyticsData.callCounts.Confirmed - analyticsData.statusCounts.Migrated)}</p>
+                <p className="text-sm text-gray-500 mt-2">Confirmed calls not yet migrated to dashboard</p>
+              </div>
+              <div className="bg-[#151c2e] border border-gray-800/80 rounded-2xl p-6">
+                <p className="text-xs text-gray-400 font-bold uppercase tracking-widest mb-2">Lost Orders</p>
+                <p className="text-4xl font-black text-rose-400 tracking-tight">{analyticsData.statusCounts.Cancelled + analyticsData.statusCounts.Fake + analyticsData.callCounts['No Answer']}</p>
+                <p className="text-sm text-gray-500 mt-2">Cancelled + Fake + No Answer combined</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
       </div>
     </div>
   );

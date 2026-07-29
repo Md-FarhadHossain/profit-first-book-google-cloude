@@ -18,7 +18,7 @@ const ACTION_OPTIONS = [
   { label: 'Shipped', value: 'Shipped' },
   { label: 'Delivered', value: 'Delivered' },
   { label: 'Cancel', value: 'Cancelled' },
-  { label: 'Return', value: 'Returned' }
+  { label: 'Return', value: 'Returned' },
 ];
 
 const CALL_OPTIONS = [

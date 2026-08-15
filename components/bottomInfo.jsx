@@ -73,7 +73,7 @@ export default function HeroSection() {
                 </div>
                 <div className="h-4 w-px bg-gray-300 mx-1"></div>
                 <p className="font-semibold text-[#856404] text-sm lg:text-base m-0">
-                  <strong>4.8</strong> (<span className='font-bold'>১</span>,৭০০+ রিভিউ)
+                  <strong>4.8</strong> (<span className='font-bold'>২</span>,৫০০+ রিভিউ)
                 </p>
               </div>
 

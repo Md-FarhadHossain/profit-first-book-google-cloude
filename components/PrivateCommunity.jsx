@@ -176,7 +176,7 @@ const PrivateCommunity = () => {
                     </div>
                     <div>
                       <p className="text-xs text-slate-500 font-medium leading-none">Active Members</p>
-                      <p className="text-xl font-black text-blue-700 leading-tight">১২০০+</p>
+                      <p className="text-xl font-black text-blue-700 leading-tight">১৪০০+</p>
                     </div>
                   </div>
 

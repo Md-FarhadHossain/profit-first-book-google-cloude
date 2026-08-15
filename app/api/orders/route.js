@@ -43,7 +43,7 @@ export async function POST(request) {
             "Content-Type": "application/json"
           },
           body: JSON.stringify({
-            model: "llama-3.3-70b-versatile",
+            model: "gpt-oss-120b",
             messages: [{
               role: "user",
               content: `What is the typical gender for the Bangladeshi name '${data.name}'? Reply with ONLY 'm' for male, 'f' for female, or 'unknown'. Do not include any other text.`

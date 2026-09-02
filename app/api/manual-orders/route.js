@@ -52,6 +52,54 @@ export async function POST(request) {
 
     const row = result.rows[0];
 
+    // CAPI Event for Manual Orders (Advanced Matching)
+    try {
+      const pixelId = process.env.NEXT_PUBLIC_FB_PIXEL_ID;
+      const accessToken = process.env.FB_ACCESS_TOKEN;
+      
+      if (pixelId && accessToken) {
+        const crypto = require('crypto');
+        const hashFn = (val) => val ? crypto.createHash('sha256').update(val.trim().toLowerCase()).digest('hex') : undefined;
+
+        let phoneRaw = number?.replace(/[^0-9]/g, '');
+        if (phoneRaw && !phoneRaw.startsWith('88')) {
+           phoneRaw = '88' + phoneRaw;
+        }
+
+        const capiPayload = {
+          data: [
+            {
+              event_name: 'Purchase',
+              event_time: Math.floor(Date.now() / 1000),
+              action_source: 'system_generated',
+              event_id: row.order_id,
+              user_data: {
+                ph: hashFn(phoneRaw),
+                fn: name ? hashFn(name.split(' ')[0]) : undefined,
+                ln: name && name.includes(' ') ? hashFn(name.split(' ').slice(1).join(' ')) : undefined,
+              },
+              custom_data: {
+                currency: 'BDT',
+                value: totalValue || 0,
+                content_type: 'product',
+              }
+            }
+          ]
+        };
+
+        const fbGraphUrl = `https://graph.facebook.com/v18.0/${pixelId}/events?access_token=${accessToken}`;
+        
+        // Post asynchronously without blocking
+        fetch(fbGraphUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(capiPayload),
+        }).catch(err => console.error("Manual CAPI fetch error:", err));
+      }
+    } catch (e) {
+      console.error("Failed to send Manual CAPI event", e);
+    }
+
     return NextResponse.json({
       success: true,
       orderId: row.order_id,

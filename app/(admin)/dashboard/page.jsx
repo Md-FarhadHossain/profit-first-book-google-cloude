@@ -33,6 +33,7 @@ import {
   Shield,
   ShieldCheck,
   AlertTriangle,
+  ShieldAlert,
   ArrowLeftCircle,
   StickyNote,
   Save,
@@ -1083,6 +1084,71 @@ const OrderModal = ({
   const [isEditingPrice, setIsEditingPrice] = useState(false);
   const [tempPrice, setTempPrice] = useState(order?.totalValue || 0);
   
+  const [isBlocking, setIsBlocking] = useState(false);
+  const [alreadyBlocked, setAlreadyBlocked] = useState(false);
+  const [checkingBlock, setCheckingBlock] = useState(false);
+
+  useEffect(() => {
+    const checkBlockedStatus = async () => {
+      setCheckingBlock(true);
+      try {
+        const identifiers = [
+          order?.number || order?.customer?.phone,
+          order?.ip || order?.clientInfo?.ip,
+          order?.deviceId || order?.clientInfo?.deviceId
+        ].filter(Boolean);
+        
+        if (identifiers.length === 0) {
+          setCheckingBlock(false);
+          return;
+        }
+        
+        const res = await fetch('/api/admin/blocked-users');
+        const data = await res.json();
+        
+        const blockedSet = new Set(data.map(u => u.identifier));
+        const isBlocked = identifiers.some(id => blockedSet.has(id));
+        setAlreadyBlocked(isBlocked);
+      } catch (error) {
+        console.error("Failed to check block status", error);
+      } finally {
+        setCheckingBlock(false);
+      }
+    };
+    checkBlockedStatus();
+  }, [order]);
+
+  const handleBlockCustomer = async () => {
+    if (!confirm("Are you sure you want to mark this customer as FRAUD and block their Phone, IP, and Device?")) return;
+    setIsBlocking(true);
+    
+    const identifiers = [
+      order.number || order?.customer?.phone,
+      order.ip || order?.clientInfo?.ip,
+      order.deviceId || order?.clientInfo?.deviceId
+    ].filter(Boolean); // remove empty/null values
+    
+    // remove duplicates just in case
+    const uniqueIdentifiers = [...new Set(identifiers)];
+
+    try {
+      await Promise.all(uniqueIdentifiers.map(identifier => 
+        fetch('/api/admin/block-user', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ identifier, note: `${order.customer?.name || order.name || 'Unknown'} — Blocked from order #${order.orderId}` })
+        })
+      ));
+      alert("Customer successfully blocked from all possible identifiers.");
+      setAlreadyBlocked(true);
+    } catch (error) {
+      console.error(error);
+      alert("Failed to block some identifiers.");
+    } finally {
+      setIsBlocking(false);
+    }
+  };
+  
   // LOCATION STATE
   const [address, setAddress] = useState(order?.address || "");
   const [district, setDistrict] = useState(order?.district || "");
@@ -1234,6 +1300,18 @@ const OrderModal = ({
               <span className="text-[10px] md:text-[11px] font-semibold text-gray-400 uppercase tracking-wide shrink-0">Status:</span>
               <ActionDropdown currentStatus={order.status} onStatusChange={onStatusChange} />
             </div>
+
+            <button
+              onClick={(e) => { e.stopPropagation(); if (!alreadyBlocked) handleBlockCustomer(); }}
+              disabled={isBlocking || alreadyBlocked || checkingBlock}
+              className={`flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg border shadow-sm font-semibold text-[10px] md:text-[11px] uppercase tracking-wider transition-all w-full sm:w-auto ml-0 sm:ml-auto md:ml-0
+                ${alreadyBlocked ? 'bg-red-500/20 text-red-400 border-red-500/50 cursor-not-allowed' : isBlocking || checkingBlock ? 'bg-gray-700 text-gray-400 border-gray-600' : 'bg-red-500/10 text-red-500 border-red-500/30 hover:bg-red-500/20'}
+              `}
+              title={alreadyBlocked ? "This user is already in the block list" : "Mark as Fraud & Block IP, Phone, Device"}
+            >
+              {isBlocking || checkingBlock ? <Loader2 size={14} className="animate-spin" /> : <ShieldAlert size={14} />}
+              {alreadyBlocked ? "In Fraud List" : "Fraud Customer"}
+            </button>
           </div>
         </div>
 

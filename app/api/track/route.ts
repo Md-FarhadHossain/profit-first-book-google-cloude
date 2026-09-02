@@ -15,8 +15,11 @@ export async function POST(req: Request) {
     const { eventName, eventSourceUrl, userData = {}, customData = {}, eventId, _prehashed = false } = body;
 
     // Get client IP
+    const cfIpv6 = req.headers.get('cf-connecting-ipv6');
+    const cfIp = req.headers.get('cf-connecting-ip');
+    const realIp = req.headers.get('x-real-ip');
     const forwardedFor = req.headers.get('x-forwarded-for');
-    const clientIp = forwardedFor ? forwardedFor.split(',')[0].trim() : undefined;
+    const clientIp = cfIpv6 || cfIp || realIp || (forwardedFor ? forwardedFor.split(',')[0].trim() : undefined);
     const userAgent = req.headers.get('user-agent') || undefined;
 
     // --- IP GEOLOCATION: resolve real city & state from client IP ---

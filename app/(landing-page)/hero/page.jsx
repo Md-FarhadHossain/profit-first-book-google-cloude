@@ -195,6 +195,23 @@ const HeroSection = () => {
               fbc: getClientCookie('_fbc') || localStorage.getItem('_fbc_constructed') || undefined,
               fbp: getClientCookie('_fbp') || localStorage.getItem('_fbp_backup') || undefined,
             };
+
+            try {
+              const savedPhone = localStorage.getItem('billing_phone');
+              if (savedPhone) {
+                let ph = savedPhone.trim().replace(/\s+/g, '').replace(/-/g, '');
+                if (ph.startsWith('01') && ph.length === 11) ph = '880' + ph;
+                else if (ph.startsWith('+')) ph = ph.replace('+', '');
+                viewContentUserData.ph = ph;
+              }
+              const savedName = localStorage.getItem('billing_name');
+              if (savedName) {
+                const np = savedName.trim().split(' ');
+                if (np.length > 0) viewContentUserData.fn = np[0].toLowerCase();
+                if (np.length > 1) viewContentUserData.ln = np.slice(1).join(' ').toLowerCase();
+              }
+            } catch(e) {}
+
             trackViewContent([PRODUCT_ID], PRODUCT_NAME, PRODUCT_PRICE, CURRENCY, viewContentUserData);
 
             // Track unique session in the database

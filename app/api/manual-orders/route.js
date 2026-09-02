@@ -19,7 +19,7 @@ export async function POST(request) {
     const address = data.customerDetails?.address   || data.address || '';
     const shipping     = data.shippingInfo?.title || data.shipping || 'Inside Dhaka';
     const shippingCost = Number(data.shippingInfo?.cost ?? data.shippingCost ?? 60);
-    const productPrice = Number(data.productPrice || data.product?.price || data.totalValue || 0);
+    const productPrice = Number(data.productPrice || data.product?.price || data.totalValue || 490);
     const totalValue   = productPrice + shippingCost;
     const note         = data.note || '';
     const marketing    = JSON.stringify({ utm_source: 'manual' });

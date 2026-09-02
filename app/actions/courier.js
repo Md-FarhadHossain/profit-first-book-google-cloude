@@ -3,8 +3,108 @@
 import { db } from '../../lib/db/index.js';
 import { orders } from '../../lib/db/schema.js';
 import { eq, inArray } from 'drizzle-orm';
+import crypto from 'crypto';
 
 const STEADFAST_API_URL = 'https://portal.packzy.com/api/v1';
+
+// --- CAPI Helper Functions ---
+const hashData = (data) => {
+  if (!data) return undefined;
+  const cleanData = String(data).trim().toLowerCase();
+  if (cleanData.length === 0) return undefined;
+  return crypto.createHash('sha256').update(cleanData).digest('hex');
+};
+
+const normalizePhone = (ph) => {
+    if (!ph) return '';
+    let phone = ph.trim().replace(/\s+/g, '').replace(/-/g, '');
+    if (phone.startsWith('01') && phone.length === 11) phone = '880' + phone;
+    else if (phone.startsWith('+')) phone = phone.replace('+', '');
+    return phone;
+};
+
+async function sendCAPIOrderProcessed(order) {
+    try {
+        const pixelId = process.env.NEXT_PUBLIC_FB_PIXEL_ID || process.env.FB_PIXEL_ID;
+        const accessToken = process.env.FB_ACCESS_TOKEN;
+        if (!pixelId || !accessToken) return;
+
+        let fbc, fbp, client_ip, client_user_agent, email;
+        
+        if (order.clientInfo) {
+            try {
+                const ci = typeof order.clientInfo === 'string' ? JSON.parse(order.clientInfo) : order.clientInfo;
+                fbc = ci.fbc;
+                fbp = ci.fbp;
+                client_ip = ci.ip;
+                client_user_agent = ci.userAgent;
+                email = ci.email;
+            } catch (e) {}
+        }
+        
+        if (order.marketing) {
+            try {
+                const m = typeof order.marketing === 'string' ? JSON.parse(order.marketing) : order.marketing;
+                if (!fbc) fbc = m.fbc;
+                if (!fbp) fbp = m.fbp;
+            } catch(e) {}
+        }
+
+        const phone = order.number || (order.customer && order.customer.phone);
+        const name = order.name || (order.customer && order.customer.name);
+        
+        let fn, ln;
+        if (name) {
+            const parts = name.trim().split(' ');
+            fn = parts[0];
+            ln = parts.length > 1 ? parts.slice(1).join(' ') : undefined;
+        }
+
+        const payload = {
+            data: [
+                {
+                    event_name: 'OrderProcessed',
+                    event_time: Math.floor(Date.now() / 1000),
+                    action_source: 'website',
+                    event_source_url: 'https://profitfirst.com.bd', // Fallback URL
+                    event_id: `processed_${order.orderId}`,
+                    user_data: {
+                        ph: phone ? hashData(normalizePhone(phone)) : undefined,
+                        fn: fn ? hashData(fn) : undefined,
+                        ln: ln ? hashData(ln) : undefined,
+                        em: email ? hashData(email) : undefined,
+                        ct: order.thana ? hashData(order.thana) : undefined,
+                        st: order.district ? hashData(order.district) : undefined,
+                        country: hashData('bd'),
+                        fbc,
+                        fbp,
+                        client_ip_address: client_ip,
+                        client_user_agent: client_user_agent,
+                    },
+                    custom_data: {
+                        currency: order.currency || 'BDT',
+                        value: order.totalValue || 0,
+                        order_id: order.orderId
+                    }
+                }
+            ],
+            ...(process.env.FACEBOOK_TEST_EVENT_CODE ? { test_event_code: process.env.FACEBOOK_TEST_EVENT_CODE } : {})
+        };
+
+        const fbGraphUrl = `https://graph.facebook.com/v18.0/${pixelId}/events?access_token=${accessToken}`;
+        const res = await fetch(fbGraphUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+        });
+        
+        if (!res.ok) {
+            console.error("CAPI OrderProcessed Error Response:", await res.text());
+        }
+    } catch (e) {
+        console.error("Failed to send CAPI OrderProcessed:", e);
+    }
+}
 
 export async function sendToSteadfast(orderId) {
   try {
@@ -71,6 +171,9 @@ export async function sendToSteadfast(orderId) {
           status: 'In Review' // Automatically move internal status to In Review
         })
         .where(eq(orders.orderId, orderId));
+
+      // Trigger CAPI Event
+      sendCAPIOrderProcessed(order);
 
       return { 
         success: true, 
@@ -214,6 +317,12 @@ export async function sendBulkToSteadfast(orderIds) {
               status: 'In Review'
           })
           .where(eq(orders.orderId, update.orderId));
+          
+       // Find original order for CAPI
+       const matchedOrder = pendingOrders.find(o => o.orderId === update.orderId);
+       if (matchedOrder) {
+           sendCAPIOrderProcessed(matchedOrder);
+       }
     }));
 
     return {

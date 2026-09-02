@@ -80,7 +80,30 @@ export default function FacebookPixel() {
             t.src=v;s=b.getElementsByTagName(e)[0];
             s.parentNode.insertBefore(t,s)}(window, document,'script',
             'https://connect.facebook.net/en_US/fbevents.js');
-            fbq('init', '${FB_PIXEL_ID}');
+            
+            var advancedMatching = {};
+            try {
+              var phone = window.localStorage.getItem('billing_phone');
+              if (phone) {
+                var ph = phone.trim().replace(/\\s+/g, '').replace(/-/g, '');
+                if (ph.startsWith('01') && ph.length === 11) ph = '880' + ph;
+                else if (ph.startsWith('+')) ph = ph.replace('+', '');
+                advancedMatching.ph = ph;
+              }
+              var name = window.localStorage.getItem('billing_name');
+              if (name) {
+                var np = name.trim().split(' ');
+                if (np.length > 0) advancedMatching.fn = np[0].toLowerCase();
+                if (np.length > 1) advancedMatching.ln = np.slice(1).join(' ').toLowerCase();
+              }
+            } catch(e) {}
+
+            if (Object.keys(advancedMatching).length > 0) {
+              fbq('init', '${FB_PIXEL_ID}', advancedMatching);
+            } else {
+              fbq('init', '${FB_PIXEL_ID}');
+            }
+            
             fbq('track', 'PageView');
           `,
         }}

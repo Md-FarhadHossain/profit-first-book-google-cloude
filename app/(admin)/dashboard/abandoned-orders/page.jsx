@@ -625,6 +625,8 @@ export default function PendingOrdersPage() {
             items: orderToMigrate.items,
             status: "Processing", // Default status for new confirmed orders
             phoneCallStatus: "Confirmed", // Logic: If we migrate manually, we likely confirmed it
+            shippingCost: orderToMigrate.shippingCost || 60,
+            totalValue: orderToMigrate.totalValue || (490 + (orderToMigrate.shippingCost || 60)),
             
             // --- NEW: TAG SOURCE AS ABANDONED ---
             source: "Abandoned Recovery", 

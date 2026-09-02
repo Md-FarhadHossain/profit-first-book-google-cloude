@@ -156,7 +156,7 @@ export async function POST(request) {
                 },
                 custom_data: {
                   currency: data.currency || 'BDT',
-                  value: data.totalValue || 0,
+                  value: Number(data.totalValue) || (490 + Number(data.shippingCost || 60)),
                   content_type: 'product',
                   contents: data.items?.map(i => ({ id: i.postId || i.item_id || 'unknown', quantity: 1 })) || []
                 }

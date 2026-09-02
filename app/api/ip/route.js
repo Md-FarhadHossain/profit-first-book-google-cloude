@@ -11,13 +11,13 @@ export async function GET(request) {
     const headersList = request.headers;
 
     // ... (rest of your code is perfect)
+    const cfIpv6 = headersList.get('cf-connecting-ipv6');
+    const cfIp = headersList.get('cf-connecting-ip');
     const forwardedFor = headersList.get('x-forwarded-for');
     const realIp = headersList.get('x-real-ip');
     const requestIp = request.ip;
 
-    const ip = forwardedFor
-      ? forwardedFor.split(',')[0].trim()
-      : realIp || requestIp || '127.0.0.1';
+    const ip = cfIpv6 || cfIp || realIp || (forwardedFor ? forwardedFor.split(',')[0].trim() : requestIp) || '127.0.0.1';
 
     return NextResponse.json({ ip });
     

@@ -1895,6 +1895,7 @@ export default function App() {
           courierStatus: order.courierStatus || "pending",
           courierNote: order.courierNote || null,
           scheduledDate: order.scheduledDate || null,
+          historicalOrderCount: order.historicalOrderCount || 1,
         }));
         
         // Use functional state update to only replace if data changed (prevent unnecessary re-renders)
@@ -3032,6 +3033,15 @@ export default function App() {
                       <td className="whitespace-nowrap py-4 px-4 text-sm font-mono">
                         <div className="flex flex-col gap-1">
                           <span className="text-blue-400">#{order.orderId}</span>
+                          {order.historicalOrderCount > 1 && (
+                            <div className="relative mt-1 group w-fit">
+                              <div className="absolute -inset-0.5 bg-gradient-to-r from-fuchsia-600 to-rose-600 rounded-full blur opacity-60 group-hover:opacity-100 transition duration-1000 group-hover:duration-200 animate-pulse"></div>
+                              <span className="relative inline-flex items-center gap-1.5 text-[10px] font-bold text-white bg-gradient-to-r from-fuchsia-500 to-rose-500 border border-rose-400/50 px-2.5 py-1 rounded-full w-fit shadow-lg shadow-rose-500/30">
+                                <Zap size={10} className="text-yellow-300 fill-yellow-300" />
+                                {order.historicalOrderCount}{order.historicalOrderCount === 2 ? 'nd' : order.historicalOrderCount === 3 ? 'rd' : 'th'} Order!
+                              </span>
+                            </div>
+                          )}
                           {isReadyToShip && (
                             <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/30 px-1.5 py-0.5 rounded-full w-fit">
                               <CheckCircle size={9} /> Ready
@@ -3207,6 +3217,15 @@ export default function App() {
                                   }`}>
                                     {isReadyToShip ? <><CheckCircle size={8} />Ready</> : <><AlertTriangle size={8} />Incomplete</>}
                                   </span>
+                                )}
+                                {order.historicalOrderCount > 1 && (
+                                  <div className="relative group shrink-0">
+                                    <div className="absolute -inset-0.5 bg-gradient-to-r from-fuchsia-600 to-rose-600 rounded-full blur opacity-60 animate-pulse"></div>
+                                    <span className="relative inline-flex items-center gap-1 text-[9px] font-bold text-white bg-gradient-to-r from-fuchsia-500 to-rose-500 border border-rose-400/50 px-2 py-0.5 rounded-full shadow-lg">
+                                      <Zap size={8} className="text-yellow-300 fill-yellow-300" />
+                                      {order.historicalOrderCount}{order.historicalOrderCount === 2 ? 'nd' : order.historicalOrderCount === 3 ? 'rd' : 'th'} Order!
+                                    </span>
+                                  </div>
                                 )}
                               </div>
                               <a

@@ -193,6 +193,26 @@ export async function GET(request) {
   try {
     let allOrders = await db.select().from(orders);
     
+    // Sort oldest to newest to compute order occurrence
+    allOrders.sort((a, b) => new Date(a.date) - new Date(b.date));
+    
+    const phoneCounts = {};
+    const orderOccurrences = {};
+
+    allOrders.forEach(o => {
+      let phone = o.number?.trim() || "N/A";
+      if (phone !== "N/A") {
+        // basic normalization: remove non-digits
+        phone = phone.replace(/\D/g, '');
+        if (phone.startsWith('880')) phone = phone.substring(2);
+        
+        phoneCounts[phone] = (phoneCounts[phone] || 0) + 1;
+        orderOccurrences[o.id] = phoneCounts[phone];
+      } else {
+        orderOccurrences[o.id] = 1;
+      }
+    });
+
     // Reverse sort so newest first
     allOrders.sort((a, b) => new Date(b.date) - new Date(a.date));
 
@@ -222,7 +242,8 @@ export async function GET(request) {
       deliveredAt: o.deliveredAt || null,
       returnedAt: o.returnedAt || null,
       courierNote: o.courierNote || null,
-      scheduledDate: o.scheduledDate || null
+      scheduledDate: o.scheduledDate || null,
+      historicalOrderCount: orderOccurrences[o.id] || 1
     }));
     
     return NextResponse.json(mappedOrders);

@@ -155,7 +155,7 @@ ${JSON.stringify(finalData, null, 2)}
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
-        model: 'llama-3.1-70b-versatile',
+        model: 'openai/gpt-oss-120b',
         messages: [{ role: 'user', content: prompt }],
         temperature: 0.5,
         max_tokens: 1024

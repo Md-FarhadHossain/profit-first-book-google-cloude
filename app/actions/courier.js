@@ -60,6 +60,9 @@ async function sendCAPIOrderProcessed(order) {
             ln = parts.length > 1 ? parts.slice(1).join(' ') : undefined;
         }
 
+        const zipMatch = order.address ? order.address.match(/\(পোস্ট কোড:\s*(.*?)\)/) : null;
+        const zipCode = zipMatch ? zipMatch[1] : undefined;
+
         const payload = {
             data: [
                 {
@@ -75,6 +78,7 @@ async function sendCAPIOrderProcessed(order) {
                         em: email ? hashData(email) : undefined,
                         ct: order.thana ? hashData(order.thana) : undefined,
                         st: order.district ? hashData(order.district) : undefined,
+                        zp: zipCode ? hashData(zipCode) : undefined,
                         country: hashData('bd'),
                         fbc,
                         fbp,

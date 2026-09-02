@@ -1167,19 +1167,36 @@ const OrderModal = ({
     let baseAddress = currentAddress
       .replace(/\s*\(জেলা:.*?\)/g, "")
       .replace(/\s*\(থানা:.*?\)/g, "")
+      .replace(/\s*\(পোস্ট কোড:.*?\)/g, "")
       .trim();
     
     let prefixes = [];
     if (newDistrict) prefixes.push(`(জেলা: ${newDistrict})`);
     if (newThana) prefixes.push(`(থানা: ${newThana})`);
     
+    // Find postal code
+    let postalCode = "";
+    if (newDistrict) {
+      const dist = hubsData.districts.find(d => d.name === newDistrict);
+      if (dist) {
+        if (newThana) {
+           const hub = dist.steadfast_hubs.find(h => h.name === newThana);
+           if (hub && hub.postal_code) postalCode = hub.postal_code;
+        } else {
+           if (dist.postal_code) postalCode = dist.postal_code;
+        }
+      }
+    }
+    
+    if (postalCode) prefixes.push(`(পোস্ট কোড: ${postalCode})`);
+
     return prefixes.length > 0 ? `${prefixes.join(" ")} ${baseAddress}`.trim() : baseAddress;
   };
   
   const availableThanas = useMemo(() => {
     if (!district) return [];
     const found = hubsData.districts.find(d => d.name === district);
-    return found ? found.steadfast_hubs : [];
+    return found ? found.steadfast_hubs.map(h => h.name) : [];
   }, [district]);
 
   useEffect(() => {
@@ -1434,6 +1451,21 @@ const OrderModal = ({
                       </select>
                     </div>
                   </div>
+                  
+                  {(() => {
+                    const zipMatch = address ? address.match(/\(পোস্ট কোড:\s*(.*?)\)/) : null;
+                    const displayedZipCode = zipMatch ? zipMatch[1] : null;
+                    if (!displayedZipCode) return null;
+                    return (
+                      <div className="mt-3 p-2.5 bg-indigo-500/10 border border-indigo-500/30 rounded-lg flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <MapPin size={14} className="text-indigo-400" />
+                          <span className="text-xs font-semibold text-indigo-300 tracking-wide uppercase">Auto-Fetched Postal Code</span>
+                        </div>
+                        <span className="text-sm font-bold text-indigo-400 tracking-widest">{displayedZipCode}</span>
+                      </div>
+                    );
+                  })()}
                 </div>
               </div>
             </div>

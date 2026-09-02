@@ -27,7 +27,8 @@ export async function POST(request) {
       postType: data.postType,
       clientInfo: data.clientInfo,
       marketing: data.marketing,
-      localTime: data.localTime
+      localTime: data.localTime,
+      gender: data.gender
     }).onConflictDoUpdate({
       target: partialOrders.deviceId,
       set: {
@@ -41,6 +42,7 @@ export async function POST(request) {
         clientInfo: data.clientInfo,
         marketing: data.marketing,
         localTime: data.localTime,
+        gender: data.gender,
         date: new Date().toISOString()
       }
     });
@@ -74,6 +76,7 @@ export async function GET(request) {
       localTime: o.localTime,
       status: o.status,
       phoneCallStatus: o.phoneCallStatus,
+      gender: o.gender,
       createdAt: (o.date && !o.date.includes('Z') && !o.date.includes('+')) ? o.date.replace(' ', 'T') + 'Z' : o.date,
       date: (o.date && !o.date.includes('Z') && !o.date.includes('+')) ? o.date.replace(' ', 'T') + 'Z' : o.date
     }));

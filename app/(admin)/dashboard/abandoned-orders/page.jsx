@@ -6,7 +6,7 @@ import {
   XCircle, RotateCcw, Eye, X, User, Phone, Calendar, DollarSign,
   PhoneCall, PhoneOff, Check, Smartphone, Globe, Zap, 
   LayoutTemplate, Info, ShieldCheck, AlertCircle, ShoppingBag,
-  AlertTriangle, Share2, ArrowRightCircle, TrendingUp, BarChart2, Target, Users2
+  AlertTriangle, Share2, ArrowRightCircle, TrendingUp, BarChart2, Target, Users2, Edit
 } from 'lucide-react';
 import { UAParser } from 'ua-parser-js'; 
 import getAllOrders from '@/lib/getAllorders';
@@ -176,7 +176,22 @@ const ConfirmationModal = ({ isOpen, onClose, onConfirm, customerName, isMigrati
 };
 
 // --- MAIN DETAILS MODAL ---
-const OrderModal = ({ order, onClose, onStatusChange, onCallStatusChange, onMigrateRequest }) => {
+const OrderModal = ({ order, onClose, onStatusChange, onCallStatusChange, onMigrateRequest, onCustomerInfoChange, onLocationChange }) => {
+  const [isEditingCustomer, setIsEditingCustomer] = useState(false);
+  const [customerName, setCustomerName] = useState(order?.customer?.name || order?.name || "");
+  const [customerPhone, setCustomerPhone] = useState(order?.customer?.phone || order?.number || "");
+  const [customerGender, setCustomerGender] = useState(order?.gender || "");
+
+  const [isEditingLocation, setIsEditingLocation] = useState(false);
+  const [address, setAddress] = useState(order?.address || "");
+
+  useEffect(() => {
+    setCustomerName(order?.customer?.name || order?.name || "");
+    setCustomerPhone(order?.customer?.phone || order?.number || "");
+    setCustomerGender(order?.gender || "");
+    setAddress(order?.address || "");
+  }, [order]);
+
   if (!order) return null;
   const ua = getDeepUserAgentInfo(order.userAgent);
   const cartItem = order.items?.[0] || {}; 
@@ -256,12 +271,93 @@ const OrderModal = ({ order, onClose, onStatusChange, onCallStatusChange, onMigr
                 </div>
               </div>
 
-               <div className="bg-gray-800/50 rounded-xl border border-gray-700/50 p-4">
-                <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-4 flex items-center gap-2">
-                  <MapPin size={14} /> Delivery Info
-                </h3>
-                <div className="text-sm text-gray-300 leading-relaxed bg-gray-900 p-3 rounded-lg border border-gray-800">
-                  {order.address || 'No address provided'}
+              <div className="bg-gray-800/50 rounded-xl border border-gray-700/50 overflow-hidden">
+                <div className="px-4 py-3 border-b border-gray-700/50 bg-gray-900/50 flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <User size={14} className="text-blue-400" />
+                    <h3 className="text-xs font-bold text-gray-200">Customer Identity</h3>
+                  </div>
+                  {!isEditingCustomer && (
+                    <button onClick={() => setIsEditingCustomer(true)} className="flex items-center gap-1.5 px-2 py-1 bg-gray-700 hover:bg-gray-600 border border-gray-600 rounded-lg text-[10px] font-semibold text-white transition-all">
+                      <Edit size={10} /> Edit Details
+                    </button>
+                  )}
+                </div>
+                <div className="p-4">
+                  {isEditingCustomer ? (
+                    <div className="space-y-3 bg-gray-900/50 p-4 rounded-lg border border-gray-800">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div className="space-y-1.5">
+                          <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest flex items-center gap-1.5"><User size={10} className="text-blue-400" /> Full Name</label>
+                          <input type="text" value={customerName} onChange={(e) => setCustomerName(e.target.value)} className="w-full bg-black text-gray-200 border border-gray-700 rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-blue-500 transition-all" />
+                        </div>
+                        <div className="space-y-1.5">
+                          <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest flex items-center gap-1.5"><Phone size={10} className="text-green-400" /> Phone Number</label>
+                          <input type="text" value={customerPhone} onChange={(e) => setCustomerPhone(e.target.value)} className="w-full bg-black text-gray-200 border border-gray-700 rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-green-500 transition-all" />
+                        </div>
+                        <div className="space-y-1.5 sm:col-span-2">
+                          <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest flex items-center gap-1.5"><User size={10} className="text-yellow-400" /> Gender</label>
+                          <select value={customerGender} onChange={(e) => setCustomerGender(e.target.value)} className="w-full bg-black text-gray-200 border border-gray-700 rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-yellow-500 transition-all">
+                            <option value="">Unknown</option>
+                            <option value="m">Male</option>
+                            <option value="f">Female</option>
+                          </select>
+                        </div>
+                      </div>
+                      <div className="flex gap-2 justify-end mt-3">
+                        <button onClick={() => { setIsEditingCustomer(false); setCustomerName(order?.customer?.name || order?.name || ""); setCustomerPhone(order?.customer?.phone || order?.number || ""); setCustomerGender(order?.gender || ""); }} className="text-[10px] text-gray-300 font-semibold px-3 py-1.5 hover:bg-gray-800 rounded-md transition-all">Cancel</button>
+                        <button onClick={() => { onCustomerInfoChange(customerName, customerPhone, customerGender); setIsEditingCustomer(false); }} className="text-[10px] text-white px-4 py-1.5 bg-blue-500 hover:bg-blue-600 rounded-md font-bold transition-all flex items-center gap-1.5">
+                          <Check size={12} /> Save
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="bg-gray-900/50 p-2.5 rounded-lg border border-gray-800">
+                        <p className="text-[10px] text-gray-500 font-bold uppercase mb-1">Full Name</p>
+                        <p className="font-semibold text-white text-xs truncate">{order.customer?.name || order.name || 'Anonymous'}</p>
+                      </div>
+                      <div className="bg-gray-900/50 p-2.5 rounded-lg border border-gray-800">
+                        <p className="text-[10px] text-gray-500 font-bold uppercase mb-1">Phone</p>
+                        <p className="font-semibold text-white text-xs truncate">{order.customer?.phone || order.number || 'No Phone'}</p>
+                      </div>
+                      <div className="bg-gray-900/50 p-2.5 rounded-lg border border-gray-800 col-span-2">
+                        <p className="text-[10px] text-gray-500 font-bold uppercase mb-1">Gender</p>
+                        <p className="font-semibold text-white text-xs">{order.gender === 'm' ? 'Male' : order.gender === 'f' ? 'Female' : 'Unknown'}</p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+               <div className="bg-gray-800/50 rounded-xl border border-gray-700/50 overflow-hidden">
+                <div className="px-4 py-3 border-b border-gray-700/50 bg-gray-900/50 flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <MapPin size={14} className="text-rose-400" />
+                    <h3 className="text-xs font-bold text-gray-200">Delivery Info</h3>
+                  </div>
+                  {!isEditingLocation && (
+                    <button onClick={() => setIsEditingLocation(true)} className="flex items-center gap-1.5 px-2 py-1 bg-gray-700 hover:bg-gray-600 border border-gray-600 rounded-lg text-[10px] font-semibold text-white transition-all">
+                      <Edit size={10} /> Edit Address
+                    </button>
+                  )}
+                </div>
+                <div className="p-4">
+                  {isEditingLocation ? (
+                    <div className="space-y-3">
+                      <textarea value={address} onChange={(e) => setAddress(e.target.value)} className="w-full bg-black text-gray-200 border border-gray-700 rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-indigo-500 transition-all resize-none h-20 custom-scrollbar" />
+                      <div className="flex gap-2 justify-end">
+                        <button onClick={() => { setIsEditingLocation(false); setAddress(order?.address || ""); }} className="text-[10px] text-gray-300 font-semibold px-3 py-1.5 hover:bg-gray-800 rounded-md transition-all">Cancel</button>
+                        <button onClick={() => { onLocationChange(address); setIsEditingLocation(false); }} className="text-[10px] text-white px-4 py-1.5 bg-indigo-500 hover:bg-indigo-600 rounded-md font-bold transition-all flex items-center gap-1.5">
+                          <Check size={12} /> Save Address
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="text-xs text-gray-300 leading-relaxed bg-gray-900 p-3 rounded-lg border border-gray-800">
+                      {order.address || 'No address provided'}
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
@@ -421,7 +517,7 @@ export default function PendingOrdersPage() {
       const rawData = json.data || [];
       
       const processed = rawData.map((item, idx) => {
-        const phone = item.marketing?.number || item.number || 'N/A';
+        const phone = item.number || item.marketing?.number || 'N/A';
         
         // Normalize phone number to match safely
         const normalize = (p) => p ? p.replace(/\D/g, '').slice(-11) : '';
@@ -435,9 +531,10 @@ export default function PendingOrdersPage() {
           status: item.marketing?.status || item.status || 'Processing',
           callStatus: item.phoneCallStatus || 'Pending',
           customer: {
-            name: item.marketing?.name || item.name || 'Guest',
+            name: item.name || item.marketing?.name || 'Guest',
             phone: phone
           },
+          gender: item.gender || '',
           items: item.items || [],
           address: item.address || item.marketing?.address || 'N/A',
           clientInfo: item.clientInfo || {},
@@ -484,6 +581,26 @@ export default function PendingOrdersPage() {
       } catch(e) { console.error("Call Status Update failed", e); }
   };
 
+  const handleCustomerInfoChange = async (id, name, phone, gender) => {
+      setOrders(prev => prev.map(o => o._id === id ? { ...o, customer: { ...o.customer, name, phone }, gender } : o));
+      if (selectedOrder && selectedOrder._id === id) setSelectedOrder(prev => ({...prev, customer: { ...prev.customer, name, phone }, gender}));
+      try {
+        await fetch(`/api/partial-orders/${id}`, {
+            method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name, phone: phone, number: phone, gender, "marketing.name": name, "marketing.number": phone }),
+        });
+      } catch(e) { console.error("Customer Update failed", e); }
+  };
+
+  const handleLocationChange = async (id, address) => {
+      setOrders(prev => prev.map(o => o._id === id ? { ...o, address } : o));
+      if (selectedOrder && selectedOrder._id === id) setSelectedOrder(prev => ({...prev, address}));
+      try {
+        await fetch(`/api/partial-orders/${id}`, {
+            method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ address, "marketing.address": address }),
+        });
+      } catch(e) { console.error("Location Update failed", e); }
+  };
+
   // --- MIGRATION LOGIC ---
   
   const handleMigrateClick = (order) => {
@@ -503,6 +620,7 @@ export default function PendingOrdersPage() {
             // Explicitly set fields the backend looks for
             number: orderToMigrate.customer.phone,
             name: orderToMigrate.customer.name,
+            gender: orderToMigrate.gender,
             address: orderToMigrate.address,
             items: orderToMigrate.items,
             status: "Processing", // Default status for new confirmed orders
@@ -650,6 +768,8 @@ export default function PendingOrdersPage() {
           onStatusChange={(s) => handleStatusUpdate(selectedOrder._id, s)}
           onCallStatusChange={(s) => handleCallStatusUpdate(selectedOrder._id, s)}
           onMigrateRequest={handleMigrateClick}
+          onCustomerInfoChange={(name, phone, gender) => handleCustomerInfoChange(selectedOrder._id, name, phone, gender)}
+          onLocationChange={(address) => handleLocationChange(selectedOrder._id, address)}
         />
       )}
 

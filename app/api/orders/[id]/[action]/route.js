@@ -25,7 +25,7 @@ export async function PATCH(request, props) {
     } else if (action === "schedule") {
       await db.update(orders).set({ scheduledDate: body.scheduledDate }).where(eq(orders.id, Number(id)));
     } else if (action === "customer-info") {
-      await db.update(orders).set({ name: body.name, number: body.phone }).where(eq(orders.id, Number(id)));
+      await db.update(orders).set({ name: body.name, number: body.phone, gender: body.gender }).where(eq(orders.id, Number(id)));
     } else if (action === "location") {
       await db.update(orders).set({ address: body.address, district: body.district, thana: body.thana }).where(eq(orders.id, Number(id)));
     } else if (action === "courier-ids") {

@@ -23,6 +23,11 @@ export async function PATCH(request, props) {
     const updateData = {};
     if (body.status !== undefined) updateData.status = body.status;
     if (body.callStatus !== undefined) updateData.phoneCallStatus = body.callStatus;
+    if (body.name !== undefined) updateData.name = body.name;
+    if (body.number !== undefined) updateData.number = body.number;
+    if (body.phone !== undefined) updateData.number = body.phone;
+    if (body.address !== undefined) updateData.address = body.address;
+    if (body.gender !== undefined) updateData.gender = body.gender;
 
     if (Object.keys(updateData).length === 0) {
       return NextResponse.json({ success: false, message: 'No fields to update' }, { status: 400 });

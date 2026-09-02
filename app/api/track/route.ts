@@ -67,6 +67,7 @@ export async function POST(req: Request) {
             ...(geoCity  ? { ct: hashData(geoCity)  } : userData.ct  ? { ct: userData.ct  } : {}),
             ...(geoState ? { st: hashData(geoState) } : userData.st  ? { st: userData.st  } : {}),
             ...(userData.zp ? { zp: buildUserField(userData.zp) } : {}),
+            ...(userData.ge ? { ge: buildUserField(userData.ge) } : {}),
             // Not hashed — sent raw per Facebook spec
             fbc: userData.fbc,
             fbp: userData.fbp,

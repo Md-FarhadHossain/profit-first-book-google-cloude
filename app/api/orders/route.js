@@ -149,6 +149,7 @@ export async function POST(request) {
                 user_data: {
                   ph: hashFn(phoneRaw),
                   fn: data.name ? hashFn(data.name.split(' ')[0]) : undefined,
+                  ge: (predictedGender === 'm' || predictedGender === 'f') ? hashFn(predictedGender) : undefined,
                   client_ip_address: userIp,
                   client_user_agent: userAgent,
                   fbp: userFbp,

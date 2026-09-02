@@ -113,6 +113,69 @@ export async function POST(request) {
     } catch (cleanupError) {
       console.error("Failed to cleanup partial order:", cleanupError);
     }
+    // CAPI Recovery Event
+    if (data.isRecoveredOrder && inserted[0]?.orderId) {
+      try {
+        const pixelId = process.env.NEXT_PUBLIC_FB_PIXEL_ID;
+        const accessToken = process.env.FB_ACCESS_TOKEN;
+        
+        if (pixelId && accessToken) {
+          const crypto = require('crypto');
+          const hashFn = (val) => val ? crypto.createHash('sha256').update(val.trim().toLowerCase()).digest('hex') : undefined;
+
+          // Normalize phone number (assuming BD country code)
+          let phoneRaw = data.number?.replace(/[^0-9]/g, '');
+          if (phoneRaw && !phoneRaw.startsWith('88')) {
+             phoneRaw = '88' + phoneRaw;
+          }
+          
+          let userFbp, userFbc, userIp, userAgent;
+          
+          if (data.clientInfo) {
+              userIp = data.clientInfo.ip;
+              userAgent = data.clientInfo.userAgent || data.userAgent;
+              userFbp = data.clientInfo.fbp;
+              userFbc = data.clientInfo.fbc;
+          }
+
+          const capiPayload = {
+            data: [
+              {
+                event_name: 'Purchase',
+                event_time: Math.floor(Date.now() / 1000),
+                action_source: 'website',
+                event_source_url: 'https://profit-first-book.com/',
+                event_id: inserted[0].orderId,
+                user_data: {
+                  ph: hashFn(phoneRaw),
+                  fn: data.name ? hashFn(data.name.split(' ')[0]) : undefined,
+                  client_ip_address: userIp,
+                  client_user_agent: userAgent,
+                  fbp: userFbp,
+                  fbc: userFbc,
+                },
+                custom_data: {
+                  currency: data.currency || 'BDT',
+                  value: data.totalValue || 0,
+                  content_type: 'product',
+                  contents: data.items?.map(i => ({ id: i.postId || i.item_id || 'unknown', quantity: 1 })) || []
+                }
+              }
+            ]
+          };
+
+          const fbGraphUrl = `https://graph.facebook.com/v18.0/${pixelId}/events?access_token=${accessToken}`;
+          
+          await fetch(fbGraphUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(capiPayload),
+          });
+        }
+      } catch (e) {
+        console.error("Failed to send recovered CAPI event", e);
+      }
+    }
     
     return NextResponse.json({ 
       success: true, 

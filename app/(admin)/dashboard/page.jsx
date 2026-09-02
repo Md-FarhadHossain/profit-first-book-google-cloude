@@ -1151,7 +1151,7 @@ const OrderModal = ({
               <div className="w-full">
                 <div className="flex flex-wrap items-center gap-2 md:gap-3 mb-1.5">
                   <h2 className="text-lg md:text-xl font-bold text-white tracking-tight break-words">Order #{order.orderId}</h2>
-                  <StatusBadge status={order.scheduledDate ? "Scheduled" : order.status} />
+                  <StatusBadge status={(order.scheduledDate && !["Cancelled", "Returned", "Fake", "Duplicate", "Abandoned", "Delivered", "Shipped"].includes(order.status)) ? "Scheduled" : order.status} />
                   <div className="flex flex-wrap gap-2 items-center w-full sm:w-auto mt-1 sm:mt-0">
                     {(order.trackingCode || order.consignmentId) && (
                       <div 
@@ -1818,7 +1818,7 @@ export default function App() {
       }
       
       // NEW: Pending call status - EXCLUDING Fake, Cancelled, Returned, Abandoned
-      if (order.callStatus === "Pending" && !["Fake", "Duplicate", "Cancelled", "Returned", "Abandoned"].includes(order.status)) {
+      if (order.callStatus === "Pending" && !order.scheduledDate && !["Fake", "Duplicate", "Cancelled", "Returned", "Abandoned"].includes(order.status)) {
         counts["PendingCall"]++;
       }
        
@@ -1833,7 +1833,7 @@ export default function App() {
       }
       
       // NEW: Scheduled orders
-      if (order.scheduledDate) {
+      if (order.scheduledDate && !["Cancelled", "Returned", "Fake", "Duplicate", "Abandoned", "Delivered", "Shipped"].includes(order.status)) {
         counts["Scheduled"] = (counts["Scheduled"] || 0) + 1;
       }
     });
@@ -2493,6 +2493,7 @@ export default function App() {
       // Logic for Pending call tab
       filtered = filtered.filter((o) => 
         o.callStatus === "Pending" && 
+        !o.scheduledDate &&
         !["Fake", "Duplicate", "Cancelled", "Returned", "Abandoned"].includes(o.status)
       );
     } else if (statusFilter === "ConfirmedProcessing") {
@@ -2502,7 +2503,7 @@ export default function App() {
       // Logic for Orders with Notes (ONLY Processing)
       filtered = filtered.filter((o) => o.status === "Processing" && o.note && o.note.trim() !== "");
     } else if (statusFilter === "Scheduled") {
-      filtered = filtered.filter((o) => !!o.scheduledDate);
+      filtered = filtered.filter((o) => !!o.scheduledDate && !["Cancelled", "Returned", "Fake", "Duplicate", "Abandoned", "Delivered", "Shipped"].includes(o.status));
     } else if (statusFilter) {
       // Logic for standard status tabs
       filtered = filtered.filter((o) => o.status === statusFilter);
@@ -2518,7 +2519,7 @@ export default function App() {
   const endItem = Math.min(startItem + itemsPerPage - 1, filteredOrders.length);
   const todayScheduleCount = useMemo(() => {
     const todayStr = format(new Date(), "yyyy-MM-dd");
-    return orders.filter(o => o.scheduledDate && o.scheduledDate === todayStr).length;
+    return orders.filter(o => o.scheduledDate && o.scheduledDate === todayStr && !["Cancelled", "Returned", "Fake", "Duplicate", "Abandoned", "Delivered", "Shipped"].includes(o.status)).length;
   }, [orders]);
 
   // --- UPDATED WIDGETS CONFIGURATION ---
@@ -3136,7 +3137,7 @@ export default function App() {
 
                       {/* STATUS COLUMN */}
                       <td className="whitespace-nowrap py-4 px-4 text-sm">
-                        <StatusBadge status={order.scheduledDate ? "Scheduled" : order.status} />
+                        <StatusBadge status={(order.scheduledDate && !["Cancelled", "Returned", "Fake", "Duplicate", "Abandoned", "Delivered", "Shipped"].includes(order.status)) ? "Scheduled" : order.status} />
                       </td>
 
                       {/* CALL STATUS COLUMN */}
@@ -3264,7 +3265,7 @@ export default function App() {
                             onClick={(e) => e.stopPropagation()}
                           >
                             {/* Status badge */}
-                            <StatusBadge status={order.scheduledDate ? "Scheduled" : order.status} />
+                            <StatusBadge status={(order.scheduledDate && !["Cancelled", "Returned", "Fake", "Duplicate", "Abandoned", "Delivered", "Shipped"].includes(order.status)) ? "Scheduled" : order.status} />
 
                             {/* Steadfast badge */}
                             {order.trackingCode && (

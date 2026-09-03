@@ -1176,6 +1176,7 @@ const OrderModal = ({
       .replace(/\s*\(জেলা:.*?\)/g, "")
       .replace(/\s*\(থানা:.*?\)/g, "")
       .replace(/\s*\(পোস্ট কোড:.*?\)/g, "")
+      .replace(/,\s*(?:পোস্ট কোড:\s*)?\d{4}\s*$/g, "")
       .trim();
     
     let prefixes = [];
@@ -1196,9 +1197,13 @@ const OrderModal = ({
       }
     }
     
-    if (postalCode) prefixes.push(`(পোস্ট কোড: ${postalCode})`);
+    let finalAddress = prefixes.length > 0 ? `${prefixes.join(" ")} ${baseAddress}`.trim() : baseAddress;
+    
+    if (postalCode) {
+      finalAddress = finalAddress ? `${finalAddress}, পোস্ট কোড: ${postalCode}` : `পোস্ট কোড: ${postalCode}`;
+    }
 
-    return prefixes.length > 0 ? `${prefixes.join(" ")} ${baseAddress}`.trim() : baseAddress;
+    return finalAddress;
   };
   
   const availableThanas = useMemo(() => {

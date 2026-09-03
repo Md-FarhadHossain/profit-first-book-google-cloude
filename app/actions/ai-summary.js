@@ -157,8 +157,10 @@ ${JSON.stringify(finalData, null, 2)}
       body: JSON.stringify({
         model: 'openai/gpt-oss-120b',
         messages: [{ role: 'user', content: prompt }],
-        temperature: 0.5,
-        max_tokens: 1024
+        temperature: 1,
+        max_completion_tokens: 2048,
+        top_p: 1,
+        reasoning_effort: 'medium'
       })
     });
 

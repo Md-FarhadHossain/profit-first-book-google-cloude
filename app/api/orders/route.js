@@ -48,8 +48,10 @@ export async function POST(request) {
               role: "user",
               content: `What is the typical gender for the Bangladeshi name '${data.name}'? Reply with ONLY 'm' for male, 'f' for female, or 'unknown'. Do not include any other text.`
             }],
-            temperature: 0.1,
-            max_completion_tokens: 10
+            temperature: 1,
+            max_completion_tokens: 2048,
+            top_p: 1,
+            reasoning_effort: "medium"
           })
         });
         

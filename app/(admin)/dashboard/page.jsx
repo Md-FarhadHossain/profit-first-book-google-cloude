@@ -1234,8 +1234,8 @@ const OrderModal = ({
       {/* Backdrop */}
       <div className={`absolute inset-0 bg-black/75 backdrop-blur-sm ${isClosing ? 'animate-backdrop-out' : 'animate-backdrop-in'}`} onClick={handleClose} />
       <div className={`relative w-full max-w-5xl bg-gray-900 md:rounded-3xl border-0 md:border border-gray-700 shadow-2xl overflow-hidden flex flex-col
-        h-[93svh] md:h-auto md:max-h-[92vh]
-        rounded-t-3xl
+        h-[100svh] md:h-auto md:max-h-[92vh]
+        rounded-none md:rounded-3xl
         ${isClosing ? 'animate-sheet-fall md:animate-out md:fade-out md:zoom-out-95 md:duration-200' : 'animate-sheet-rise md:animate-none md:animate-in md:fade-in md:zoom-in-95 md:duration-200'}`}>
         
         {/* ── MOBILE ONLY SHEET HEADER ───────────────────────────── */}

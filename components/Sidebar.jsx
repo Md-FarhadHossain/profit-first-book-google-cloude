@@ -87,69 +87,27 @@ export default function Sidebar({ initialCollapsed = false }) {
 
   return (
     <>
-      {/* ============================================================
-          MOBILE BOTTOM NAVIGATION BAR
-          Replaces the hamburger button — no more overlay blocking the screen
-      ============================================================ */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-gray-900/95 backdrop-blur-md border-t border-gray-800 safe-area-inset-bottom">
-        <div className="flex items-stretch justify-around px-1 pt-1 pb-safe">
-          {navItems.slice(0, 5).map((item) => {
-            const active = isActive(item.path);
-            return (
-              <Link
-                key={item.path}
-                href={item.path}
-                className={`
-                  flex flex-col items-center justify-center gap-0.5 px-1.5 py-2 rounded-xl flex-1 min-w-0 transition-all duration-200 relative
-                  ${active
-                    ? 'text-blue-400'
-                    : 'text-gray-500 hover:text-gray-300'
-                  }
-                `}
-              >
-                {active && (
-                  <span className="absolute top-0.5 left-1/2 -translate-x-1/2 w-6 h-0.5 bg-blue-500 rounded-full" />
-                )}
-                <item.icon
-                  size={20}
-                  className={`shrink-0 transition-all duration-200 ${active ? 'text-blue-400' : 'text-gray-500'}`}
-                />
-                <span className={`text-[10px] font-medium truncate w-full text-center leading-tight ${active ? 'text-blue-400' : 'text-gray-500'}`}>
-                  {item.label.split(' ')[0]}
-                </span>
-              </Link>
-            );
-          })}
+      {/* MOBILE TRIGGER BUTTON (Only visible on mobile) */}
+      <button 
+        onClick={() => setIsMobileOpen(true)}
+        className="md:hidden fixed top-4 left-4 z-40 p-2 bg-gray-800 text-white rounded-lg border border-gray-700 shadow-lg hover:bg-gray-700 transition-colors"
+      >
+        <Menu size={20} />
+      </button>
 
-          {/* More button to open full sidebar drawer */}
-          <button
-            onClick={() => setIsMobileOpen(true)}
-            className={`flex flex-col items-center justify-center gap-0.5 px-1.5 py-2 rounded-xl flex-1 min-w-0 transition-all duration-200 relative
-              ${navItems.slice(5).some(item => isActive(item.path))
-                ? 'text-blue-400'
-                : 'text-gray-500 hover:text-gray-300'
-              }
-            `}
-          >
-            <Menu size={20} className="shrink-0" />
-            <span className="text-[10px] font-medium">More</span>
-          </button>
-        </div>
-      </nav>
-
-      {/* MOBILE BACKDROP OVERLAY (for "More" drawer) */}
+      {/* MOBILE BACKDROP OVERLAY */}
       {isMobileOpen && (
-        <div
+        <div 
           className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 animate-in fade-in duration-200 md:hidden"
           onClick={() => setIsMobileOpen(false)}
         />
       )}
 
-      {/* SIDEBAR DRAWER (mobile: slides in for "More" overflow items) */}
-      <aside
+      {/* SIDEBAR CONTAINER */}
+      <aside 
         className={`
           fixed md:static inset-y-0 left-0 z-50
-          h-screen bg-gray-900 border-r border-gray-800
+          h-screen bg-gray-900 border-r border-gray-800 
           transition-all duration-300 ease-in-out
           flex flex-col
           ${isMobileOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}

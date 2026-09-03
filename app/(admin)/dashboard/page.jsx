@@ -1083,10 +1083,18 @@ const OrderModal = ({
 }) => {
   const [isEditingPrice, setIsEditingPrice] = useState(false);
   const [tempPrice, setTempPrice] = useState(order?.totalValue || 0);
+  const [isClosing, setIsClosing] = useState(false);
   
   const [isBlocking, setIsBlocking] = useState(false);
   const [alreadyBlocked, setAlreadyBlocked] = useState(false);
   const [checkingBlock, setCheckingBlock] = useState(false);
+
+  const handleClose = () => {
+    setIsClosing(true);
+    setTimeout(() => {
+      onClose();
+    }, 350);
+  };
 
   useEffect(() => {
     const checkBlockedStatus = async () => {
@@ -1222,109 +1230,174 @@ const OrderModal = ({
   );
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-black/80 backdrop-blur-md transition-all text-gray-200">
-      <div className="absolute inset-0" onClick={onClose}></div>
-      <div className="relative w-full max-w-5xl bg-gray-900 rounded-2xl md:rounded-3xl border border-gray-700 shadow-2xl overflow-hidden animate-in fade-in slide-in-bottom-4 duration-300 flex flex-col max-h-[96vh] md:max-h-[92vh]">
+    <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center md:p-4 text-gray-200">
+      {/* Backdrop */}
+      <div className={`absolute inset-0 bg-black/75 backdrop-blur-sm ${isClosing ? 'animate-backdrop-out' : 'animate-backdrop-in'}`} onClick={handleClose} />
+      <div className={`relative w-full max-w-5xl bg-gray-900 md:rounded-3xl border-0 md:border border-gray-700 shadow-2xl overflow-hidden flex flex-col
+        h-[93svh] md:h-auto md:max-h-[92vh]
+        rounded-t-3xl
+        ${isClosing ? 'animate-sheet-fall md:animate-out md:fade-out md:zoom-out-95 md:duration-200' : 'animate-sheet-rise md:animate-none md:animate-in md:fade-in md:zoom-in-95 md:duration-200'}`}>
         
-        {/* HEADER & TOP CONTROLS */}
-        <div className="bg-gradient-to-r from-gray-900 to-gray-800 border-b border-gray-700 shrink-0 shadow-sm relative z-10">
-          <div className="flex flex-col md:flex-row md:items-center justify-between px-4 md:px-6 py-4 md:py-5 gap-3 md:gap-4 relative">
-            <div className="flex items-start md:items-center gap-3 md:gap-4 pr-10 md:pr-0">
-              <div className="p-2 md:p-3 bg-indigo-500/10 rounded-xl md:rounded-2xl border border-indigo-500/20 shadow-inner hidden sm:block">
+        {/* ── MOBILE ONLY SHEET HEADER ───────────────────────────── */}
+        <div className="md:hidden shrink-0">
+
+          {/* Drag handle */}
+          <div className="flex justify-center pt-3 pb-2">
+            <div className="w-9 h-[5px] bg-gray-600 rounded-full" />
+          </div>
+
+          {/* Order ID row */}
+          <div className="flex items-center gap-2.5 px-4 pb-3">
+            <div className="flex-1 min-w-0">
+              <p className="text-[11px] font-semibold text-gray-500 uppercase tracking-widest mb-0.5">Order</p>
+              <div className="flex items-center gap-2 min-w-0">
+                <h2 className="text-lg font-bold text-white tracking-tight truncate">#{order.orderId}</h2>
+                <StatusBadge status={(order.scheduledDate && !["Cancelled","Returned","Fake","Duplicate","Abandoned","Delivered","Shipped"].includes(order.status)) ? "Scheduled" : order.status} />
+              </div>
+              <p className="text-[10px] text-gray-500 mt-0.5">{new Date(order.date).toLocaleString()}</p>
+            </div>
+            <button
+              onClick={handleClose}
+              className="shrink-0 w-9 h-9 flex items-center justify-center rounded-full bg-gray-800 border border-gray-700 text-gray-400 active:bg-gray-700 transition-colors"
+            >
+              <X size={17} />
+            </button>
+          </div>
+
+          {/* ── Action Grid ─ 2 columns, fills full width ── */}
+          <div className="px-3 pb-3 grid grid-cols-2 gap-2 border-t border-gray-800 pt-3">
+
+            {/* Ship Method */}
+            <div className="bg-gray-800 rounded-xl p-3 border border-gray-700/60 flex flex-col gap-1.5">
+              <span className="text-[9px] font-bold text-gray-500 uppercase tracking-widest flex items-center gap-1">
+                <Truck size={9} className="text-indigo-400" /> Shipping
+              </span>
+              <ShippingMethodDropdown currentMethod={order.shippingMethod} onMethodChange={onShippingMethodChange} />
+            </div>
+
+            {/* Status */}
+            <div className="bg-gray-800 rounded-xl p-3 border border-gray-700/60 flex flex-col gap-1.5">
+              <span className="text-[9px] font-bold text-gray-500 uppercase tracking-widest flex items-center gap-1">
+                <CheckCircle size={9} className="text-blue-400" /> Status
+              </span>
+              <ActionDropdown currentStatus={order.status} onStatusChange={onStatusChange} />
+            </div>
+
+            {/* Fraud button */}
+            <button
+              onClick={(e) => { e.stopPropagation(); if (!alreadyBlocked) handleBlockCustomer(); }}
+              disabled={isBlocking || alreadyBlocked || checkingBlock}
+              className={`flex items-center justify-center gap-2 py-3 rounded-xl border font-semibold text-xs uppercase tracking-wider transition-all active:scale-95
+                ${alreadyBlocked
+                  ? 'bg-red-500/15 text-red-400 border-red-500/40 cursor-not-allowed'
+                  : isBlocking || checkingBlock
+                    ? 'bg-gray-800 text-gray-500 border-gray-700'
+                    : 'bg-gray-800 text-red-400 border-gray-700/60 active:bg-red-500/10'
+                }`}
+            >
+              {isBlocking || checkingBlock ? <Loader2 size={14} className="animate-spin" /> : <ShieldAlert size={14} />}
+              {alreadyBlocked ? 'In Fraud List' : 'Fraud Customer'}
+            </button>
+
+            {/* Edit IDs / Tracking */}
+            <button
+              onClick={(e) => { e.stopPropagation(); onEditCourierIds && onEditCourierIds(); }}
+              className="flex items-center justify-center gap-2 py-3 rounded-xl border border-gray-700/60 bg-gray-800 text-purple-400 font-semibold text-xs uppercase tracking-wider transition-all active:scale-95 active:bg-purple-500/10"
+            >
+              <Edit size={14} /> Edit IDs
+            </button>
+
+            {/* Tracking code chip — only shown if exists, spans full row */}
+            {(order.trackingCode || order.consignmentId) && (
+              <div
+                className="col-span-2 flex items-center gap-2 px-3 py-2.5 bg-indigo-500/10 border border-indigo-500/30 rounded-xl cursor-copy active:bg-indigo-500/20 transition-colors"
+                onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(order.trackingCode || order.consignmentId); }}
+              >
+                <Truck size={13} className="text-indigo-400 shrink-0" />
+                <span className="text-xs font-bold text-indigo-300 truncate flex-1">{order.trackingCode || order.consignmentId}</span>
+                <span className="text-[9px] font-semibold text-indigo-500 uppercase tracking-widest shrink-0">Tap to copy</span>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* ── DESKTOP HEADER (unchanged) ─────────────────────────── */}
+        <div className="hidden md:block bg-gradient-to-r from-gray-900 to-gray-800 border-b border-gray-700 shrink-0 shadow-sm">
+          <div className="flex md:flex-row md:items-center justify-between px-6 py-5 gap-4">
+            <div className="flex items-center gap-4">
+              <div className="p-3 bg-indigo-500/10 rounded-2xl border border-indigo-500/20 shadow-inner">
                 <Package className="text-indigo-400" size={24} />
               </div>
               <div className="w-full">
-                <div className="flex flex-wrap items-center gap-2 md:gap-3 mb-1.5">
-                  <h2 className="text-lg md:text-xl font-bold text-white tracking-tight break-words">Order #{order.orderId}</h2>
-                  <StatusBadge status={(order.scheduledDate && !["Cancelled", "Returned", "Fake", "Duplicate", "Abandoned", "Delivered", "Shipped"].includes(order.status)) ? "Scheduled" : order.status} />
-                  <div className="flex flex-wrap gap-2 items-center w-full sm:w-auto mt-1 sm:mt-0">
+                <div className="flex flex-wrap items-center gap-3 mb-1.5">
+                  <h2 className="text-xl font-bold text-white tracking-tight break-words">Order #{order.orderId}</h2>
+                  <StatusBadge status={(order.scheduledDate && !["Cancelled","Returned","Fake","Duplicate","Abandoned","Delivered","Shipped"].includes(order.status)) ? "Scheduled" : order.status} />
+                  <div className="flex flex-wrap gap-2 items-center">
                     {(order.trackingCode || order.consignmentId) && (
-                      <div 
-                        className="flex items-center gap-1.5 px-2 md:px-2.5 py-1 bg-indigo-500/20 border border-indigo-500/40 text-indigo-300 text-[10px] md:text-xs font-bold tracking-wider rounded-md shadow-sm cursor-copy hover:bg-indigo-500/30 transition-all"
+                      <div
+                        className="flex items-center gap-1.5 px-2.5 py-1 bg-indigo-500/20 border border-indigo-500/40 text-indigo-300 text-xs font-bold tracking-wider rounded-md shadow-sm cursor-copy hover:bg-indigo-500/30 transition-all"
                         title="Click to copy Courier ID"
                         onClick={(e) => {
                           e.stopPropagation();
                           navigator.clipboard.writeText(order.trackingCode || order.consignmentId);
                           const el = e.currentTarget.querySelector('.copy-text-tracking');
-                          if (el) {
-                            const original = el.innerText;
-                            el.innerText = 'COPIED!';
-                            setTimeout(() => {
-                              if (el) el.innerText = original;
-                            }, 1500);
-                          }
+                          if (el) { const o = el.innerText; el.innerText = 'COPIED!'; setTimeout(() => { if(el) el.innerText = o; }, 1500); }
                         }}
                       >
-                        <Truck size={12} className="md:w-3.5 md:h-3.5" />
+                        <Truck size={14} />
                         <span className="copy-text-tracking">{order.trackingCode || order.consignmentId}</span>
                       </div>
                     )}
                     {(order.trackingCode && order.consignmentId && order.trackingCode !== order.consignmentId) && (
-                      <div 
-                        className="flex items-center gap-1.5 px-2 md:px-2.5 py-1 bg-fuchsia-500/20 border border-fuchsia-500/40 text-fuchsia-300 text-[10px] md:text-xs font-bold tracking-wider rounded-md shadow-sm cursor-copy hover:bg-fuchsia-500/30 transition-all"
-                        title="Click to copy Parcel ID"
+                      <div
+                        className="flex items-center gap-1.5 px-2.5 py-1 bg-fuchsia-500/20 border border-fuchsia-500/40 text-fuchsia-300 text-xs font-bold tracking-wider rounded-md shadow-sm cursor-copy hover:bg-fuchsia-500/30 transition-all"
                         onClick={(e) => {
                           e.stopPropagation();
                           navigator.clipboard.writeText(order.consignmentId);
                           const el = e.currentTarget.querySelector('.copy-text-parcel');
-                          if (el) {
-                            const original = el.innerText;
-                            el.innerText = 'COPIED!';
-                            setTimeout(() => {
-                              if (el) el.innerText = original;
-                            }, 1500);
-                          }
+                          if (el) { const o = el.innerText; el.innerText = 'COPIED!'; setTimeout(() => { if(el) el.innerText = o; }, 1500); }
                         }}
                       >
-                        <Package size={12} className="md:w-3.5 md:h-3.5" />
+                        <Package size={14} />
                         <span className="copy-text-parcel">{order.consignmentId.startsWith('#') ? order.consignmentId : `#${order.consignmentId}`}</span>
                       </div>
                     )}
-                    {/* Edit Courier IDs Button */}
                     <button
                       onClick={(e) => { e.stopPropagation(); onEditCourierIds && onEditCourierIds(); }}
-                      title="Edit Courier / Tracking IDs"
                       className="flex items-center gap-1 px-2 py-1 bg-purple-500/15 border border-purple-500/30 text-purple-300 text-[10px] font-bold tracking-wider rounded-md hover:bg-purple-500/25 transition-all"
                     >
                       <Edit size={10} /> Edit IDs
                     </button>
                   </div>
                 </div>
-                <div className="flex flex-wrap items-center gap-2 md:gap-3 text-[10px] md:text-xs font-medium text-gray-400">
-                  <span className="flex items-center gap-1 md:gap-1.5 bg-gray-800 px-1.5 md:px-2 py-0.5 md:py-1 rounded-md"><Calendar size={10} className="md:w-3 md:h-3 text-gray-500"/> {new Date(order.date).toLocaleString()}</span>
-                  <span className="flex items-center gap-1 md:gap-1.5 bg-gray-800 px-1.5 md:px-2 py-0.5 md:py-1 rounded-md"><Globe size={10} className="md:w-3 md:h-3 text-gray-500"/> {order.ip || "No IP Available"}</span>
+                <div className="flex flex-wrap items-center gap-3 text-xs font-medium text-gray-400">
+                  <span className="flex items-center gap-1.5 bg-gray-800 px-2 py-1 rounded-md"><Calendar size={12} className="text-gray-500"/> {new Date(order.date).toLocaleString()}</span>
+                  <span className="flex items-center gap-1.5 bg-gray-800 px-2 py-1 rounded-md"><Globe size={12} className="text-gray-500"/> {order.ip || "No IP Available"}</span>
                 </div>
               </div>
             </div>
-            
-            <div className="absolute top-4 right-4 md:static">
-              <button onClick={onClose} className="p-1.5 md:p-2 text-gray-400 hover:text-white hover:bg-red-500/20 hover:border-red-500/30 rounded-lg md:rounded-xl transition-all bg-gray-800 border border-gray-700 shadow-sm">
-                <X size={16} className="md:w-5 md:h-5" />
-              </button>
-            </div>
+            <button onClick={handleClose} className="p-2 text-gray-400 hover:text-white hover:bg-red-500/20 rounded-xl transition-all bg-gray-800 border border-gray-700 shadow-sm shrink-0">
+              <X size={20} />
+            </button>
           </div>
-          
-          {/* INSTANT QUICK ACTIONS BAR - No scrolling Needed! */}
-          <div className="px-4 md:px-6 py-2.5 md:py-3 bg-gray-800/60 flex flex-col sm:flex-row flex-wrap items-stretch sm:items-center gap-2 md:gap-4 border-t border-gray-700/50 shadow-inner">
-            <span className="text-[10px] font-bold text-gray-500 uppercase tracking-widest hidden sm:flex items-center gap-1"><Zap size={12} className="text-yellow-500"/> Action Center</span>
-            
-            <div className="flex items-center justify-between sm:justify-start gap-2 bg-gray-900/80 px-2.5 md:px-3 py-1.5 rounded-lg border border-gray-700 shadow-sm focus-within:border-indigo-500/50 transition-colors w-full sm:w-auto">
-              <span className="text-[10px] md:text-[11px] font-semibold text-gray-400 uppercase tracking-wide shrink-0">Ship Method:</span>
+
+          {/* Desktop action bar */}
+          <div className="border-t border-gray-700/50 bg-gray-800/60 flex flex-row flex-wrap items-center gap-4 px-6 py-3">
+            <span className="text-[10px] font-bold text-gray-500 uppercase tracking-widest flex items-center gap-1"><Zap size={12} className="text-yellow-500"/> Action Center</span>
+            <div className="flex items-center gap-2 bg-gray-900/80 px-3 py-1.5 rounded-lg border border-gray-700 shadow-sm">
+              <span className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide shrink-0">Ship Method:</span>
               <ShippingMethodDropdown currentMethod={order.shippingMethod} onMethodChange={onShippingMethodChange} />
             </div>
-
-            <div className="flex items-center justify-between sm:justify-start gap-2 bg-gray-900/80 px-2.5 md:px-3 py-1.5 rounded-lg border border-gray-700 shadow-sm focus-within:border-indigo-500/50 transition-colors w-full sm:w-auto ml-0 sm:ml-auto md:ml-0">
-              <span className="text-[10px] md:text-[11px] font-semibold text-gray-400 uppercase tracking-wide shrink-0">Status:</span>
+            <div className="flex items-center gap-2 bg-gray-900/80 px-3 py-1.5 rounded-lg border border-gray-700 shadow-sm">
+              <span className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide shrink-0">Status:</span>
               <ActionDropdown currentStatus={order.status} onStatusChange={onStatusChange} />
             </div>
-
             <button
               onClick={(e) => { e.stopPropagation(); if (!alreadyBlocked) handleBlockCustomer(); }}
               disabled={isBlocking || alreadyBlocked || checkingBlock}
-              className={`flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg border shadow-sm font-semibold text-[10px] md:text-[11px] uppercase tracking-wider transition-all w-full sm:w-auto ml-0 sm:ml-auto md:ml-0
+              className={`flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg border shadow-sm font-semibold text-[11px] uppercase tracking-wider transition-all ml-auto
                 ${alreadyBlocked ? 'bg-red-500/20 text-red-400 border-red-500/50 cursor-not-allowed' : isBlocking || checkingBlock ? 'bg-gray-700 text-gray-400 border-gray-600' : 'bg-red-500/10 text-red-500 border-red-500/30 hover:bg-red-500/20'}
               `}
-              title={alreadyBlocked ? "This user is already in the block list" : "Mark as Fraud & Block IP, Phone, Device"}
             >
               {isBlocking || checkingBlock ? <Loader2 size={14} className="animate-spin" /> : <ShieldAlert size={14} />}
               {alreadyBlocked ? "In Fraud List" : "Fraud Customer"}
@@ -1630,7 +1703,7 @@ const OrderModal = ({
                 <div className="space-y-3 pb-4 border-b border-gray-700/50 mb-4">
                   <div className="flex justify-between items-center">
                     <span className="text-xs font-medium text-gray-400 uppercase tracking-widest">Subtotal</span>
-                    <span className="font-semibold text-gray-300">{order.items ? (order.totalValue - order.shippingCost) : "N/A"} ৳</span>
+                    <span className="font-semibold text-gray-300">{(order.totalValue - order.shippingCost) || 490} ৳</span>
                   </div>
                   <div className="flex justify-between items-center">
                     <span className="flex items-center gap-2 text-xs font-medium text-gray-400 uppercase tracking-widest">

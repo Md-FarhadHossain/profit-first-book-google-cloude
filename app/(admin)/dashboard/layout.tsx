@@ -30,10 +30,8 @@ export default async function RootLayout({
           
           {/* MAIN CONTENT AREA */}
           <main className="flex-1 overflow-y-auto relative scroll-smooth">
-            {/* Add padding-top on mobile so the content isn't hidden 
-              behind the hamburger menu button 
-            */}
-            <div className="p-4 md:p-0 pt-16 md:pt-0 h-full">
+            {/* Bottom padding on mobile so content isn't hidden behind the bottom nav bar */}
+            <div className="p-4 md:p-0 pb-20 md:pb-0 h-full">
               {children}
             </div>
           </main>

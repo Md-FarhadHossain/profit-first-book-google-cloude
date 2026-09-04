@@ -83,6 +83,16 @@ export default function FacebookPixel() {
             
             var advancedMatching = {};
             try {
+              // 1. Generate or retrieve device_id for External ID
+              var deviceId = window.localStorage.getItem('device_id');
+              if (!deviceId) {
+                // Generate a random UUID-like string for device_id
+                deviceId = 'dev_' + Date.now().toString(36) + '_' + Math.random().toString(36).substr(2, 9);
+                window.localStorage.setItem('device_id', deviceId);
+              }
+              advancedMatching.external_id = deviceId;
+
+              // 2. Phone number
               var phone = window.localStorage.getItem('billing_phone');
               if (phone) {
                 var ph = phone.trim().replace(/\\s+/g, '').replace(/-/g, '');
@@ -90,6 +100,8 @@ export default function FacebookPixel() {
                 else if (ph.startsWith('+')) ph = ph.replace('+', '');
                 advancedMatching.ph = ph;
               }
+
+              // 3. Name
               var name = window.localStorage.getItem('billing_name');
               if (name) {
                 var np = name.trim().split(' ');

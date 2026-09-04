@@ -98,10 +98,13 @@ export const sendServerEvent = async (eventName: string, customData: any, userDa
         const fbp = userData.fbp || fbpFromCookie || fbpBackup;
 
         // Build full userData with resolved fbc/fbp before hashing
+        const deviceId = typeof localStorage !== 'undefined' ? (localStorage.getItem('device_id') ?? undefined) : undefined;
+        
         const rawUserData = {
             ...userData,
             fbc,
             fbp,
+            external_id: userData.external_id || deviceId,
             client_user_agent: userData.client_user_agent || (typeof navigator !== 'undefined' ? navigator.userAgent : undefined),
         };
 

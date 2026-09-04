@@ -118,7 +118,7 @@ export const trackPurchase = (
   numItems: number = 1,
   orderId: string,
   extraParams: any = {},
-  userData: { ph?: string; fn?: string; ln?: string; em?: string } = {}
+  userData: { ph?: string; fn?: string; ln?: string; em?: string; external_id?: string } = {}
 ) => {
   // Use orderId for rock-solid deduplication on Facebook's end
   const eventId = orderId ? `purchase_${orderId}` : generateEventId();
@@ -163,13 +163,13 @@ export const trackPurchase = (
   sendServerEvent('Purchase', customData, userData, eventId);
 };
 
-export const trackLead = (userData: { ph?: string; em?: string; fn?: string; ln?: string }) => {
+export const trackLead = (userData: { ph?: string; em?: string; fn?: string; ln?: string; external_id?: string }) => {
   const eventId = generateEventId();
   firePixelEvent('Lead', {}, eventId);
   sendServerEvent('Lead', {}, userData, eventId);
 };
 
-export const trackCompleteRegistration = (userData: { ph?: string; em?: string; fn?: string; ln?: string }) => {
+export const trackCompleteRegistration = (userData: { ph?: string; em?: string; fn?: string; ln?: string; external_id?: string }) => {
   const eventId = generateEventId();
   firePixelEvent('CompleteRegistration', {}, eventId);
   sendServerEvent('CompleteRegistration', {}, userData, eventId);

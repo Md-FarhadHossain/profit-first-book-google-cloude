@@ -3192,6 +3192,8 @@ export default function App() {
                     order.shippingCost
                   );
                   // --- READINESS CHECK ---
+                  const todayStr = format(new Date(), "yyyy-MM-dd");
+                  const isScheduledToday = order.scheduledDate === todayStr && !["Cancelled", "Returned", "Fake", "Duplicate", "Abandoned", "Delivered", "Shipped"].includes(order.status);
                   const isReadyToShip = !order.trackingCode
                     && order.callStatus === "Confirmed"
                     && !!order.district
@@ -3209,13 +3211,15 @@ export default function App() {
                         className={`hidden md:table-row cursor-pointer transition-all duration-300 ${
                           pinnedOrderId === order.id
                             ? "bg-indigo-600/25 ring-1 ring-indigo-500 shadow-[inset_4px_0_0_0_#6366f1] relative z-10"
-                            : isCancelled
-                              ? "bg-red-950/20 shadow-[inset_4px_0_0_0_#ef4444] hover:bg-red-900/10"
-                              : isReadyToShip
-                                ? "bg-emerald-950/30 shadow-[inset_4px_0_0_0_#10b981] hover:bg-emerald-900/20"
-                                : needsWork
-                                  ? "shadow-[inset_4px_0_0_0_#f59e0b] hover:bg-gray-700/40 " + (index % 2 === 0 ? "bg-gray-700/25" : "")
-                                  : `hover:bg-gray-700/40 ${index % 2 === 0 ? "bg-gray-700/25" : ""}`
+                            : isScheduledToday
+                              ? "bg-indigo-900/40 shadow-[inset_4px_0_0_0_#818cf8] hover:bg-indigo-900/60"
+                              : isCancelled
+                                ? "bg-red-950/20 shadow-[inset_4px_0_0_0_#ef4444] hover:bg-red-900/10"
+                                : isReadyToShip
+                                  ? "bg-emerald-950/30 shadow-[inset_4px_0_0_0_#10b981] hover:bg-emerald-900/20"
+                                  : needsWork
+                                    ? "shadow-[inset_4px_0_0_0_#f59e0b] hover:bg-gray-700/40 " + (index % 2 === 0 ? "bg-gray-700/25" : "")
+                                    : `hover:bg-gray-700/40 ${index % 2 === 0 ? "bg-gray-700/25" : ""}`
                         }`}
                       >
                       <td className="whitespace-nowrap py-4 px-4 text-sm font-mono">
@@ -3372,13 +3376,15 @@ export default function App() {
                           className={`flex flex-col gap-0 active:scale-[0.99] transition-transform relative overflow-hidden rounded-2xl cursor-pointer ${
                             pinnedOrderId === order.id
                               ? "bg-indigo-900/40 border border-indigo-500/80 shadow-[0_4px_20px_rgba(99,102,241,0.25)] ring-1 ring-indigo-500/50 z-10"
-                              : isCancelled
-                                ? "bg-red-950/20 border border-red-500/20 shadow-[0_2px_12px_rgba(239,68,68,0.05)]"
-                                : isReadyToShip
-                                  ? "bg-emerald-950/40 border border-emerald-500/40 shadow-[0_2px_12px_rgba(16,185,129,0.12)]"
-                                  : needsWork
-                                    ? "bg-gray-800/90 border-l-[3px] border-l-amber-500 border border-gray-700/60 shadow-md"
-                                    : "bg-gray-800/90 border border-gray-700/50 shadow-md"
+                              : isScheduledToday
+                                ? "bg-indigo-900/40 border border-indigo-500/50 shadow-[0_4px_20px_rgba(99,102,241,0.15)] ring-1 ring-indigo-500/30"
+                                : isCancelled
+                                  ? "bg-red-950/20 border border-red-500/20 shadow-[0_2px_12px_rgba(239,68,68,0.05)]"
+                                  : isReadyToShip
+                                    ? "bg-emerald-950/40 border border-emerald-500/40 shadow-[0_2px_12px_rgba(16,185,129,0.12)]"
+                                    : needsWork
+                                      ? "bg-gray-800/90 border-l-[3px] border-l-amber-500 border border-gray-700/60 shadow-md"
+                                      : "bg-gray-800/90 border border-gray-700/50 shadow-md"
                           }`}
                         >
                           {/* ── Card Header ── */}

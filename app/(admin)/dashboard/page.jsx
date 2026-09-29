@@ -401,27 +401,33 @@ const FraudCheckerBadge = ({ phone }) => {
     : { bg: 'bg-gray-800/40', text: 'text-gray-400', icon: 'text-gray-500' };
 
   return (
-    <div className="mt-4 rounded-xl border border-gray-700/50 bg-[#0f1117] overflow-hidden">
+    <div className="mt-4 rounded-xl border border-gray-700/50 bg-[#131825] overflow-hidden">
 
-      {/* ── Header row: title + trust badge ── */}
-      <div className="px-4 pt-4 pb-3 flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <Package size={13} className="text-gray-500" />
-          <span className="text-[11px] font-semibold text-gray-400 tracking-wide uppercase">Customer Delivery Profile</span>
+      {/* ── Header: Volume band (hero) + Trust badge ── */}
+      <div className={`px-4 pt-4 pb-3 flex items-center justify-between ${volumeColor.bg}`}>
+        <div className="flex items-center gap-2.5">
+          <Package size={14} className={volumeColor.icon} />
+          <div>
+            <p className="text-[9px] font-semibold text-gray-500 uppercase tracking-widest leading-none mb-0.5">Parcel Volume</p>
+            <p className={`text-[17px] font-black leading-none ${volumeColor.text}`}>{volumeLabel}</p>
+          </div>
         </div>
         <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md uppercase tracking-widest ${accent.bg} ${accent.text} border ${accent.border}`}>
           {label}
         </span>
       </div>
 
-      {/* ── Main metric ── */}
-      <div className="px-4 pb-3">
+      {/* ── Divider ── */}
+      <div className="border-t border-gray-800/80" />
+
+      {/* ── Main metric: delivery rate + progress bar ── */}
+      <div className="px-4 py-3">
         <div className="flex items-end gap-2 mb-2">
           <span className={`text-[32px] font-black leading-none ${accent.text}`}>{rate}%</span>
           <span className="text-sm font-semibold text-gray-400 mb-1">Delivery Success</span>
         </div>
-        {/* Progress bar */}
-        <div className="w-full h-1.5 bg-gray-800 rounded-full overflow-hidden">
+        {/* Progress bar: green = delivered, red = cancelled */}
+        <div className="w-full h-2 rounded-full overflow-hidden" style={{ background: '#f04438' }}>
           <div
             className="h-full rounded-full transition-all duration-700 ease-out"
             style={{ width: `${rate}%`, background: accent.stroke }}
@@ -432,39 +438,23 @@ const FraudCheckerBadge = ({ phone }) => {
       {/* ── Divider ── */}
       <div className="mx-4 border-t border-gray-800" />
 
-      {/* ── Delivered / Cancelled comparison ── */}
-      <div className="px-4 py-3 grid grid-cols-2 gap-3">
-        <div>
-          <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-widest mb-1">Delivered</p>
-          <p className={`text-[18px] font-black leading-none ${accent.text}`}>{rate}%</p>
-        </div>
-        <div>
+      {/* ── Secondary metrics: Cancelled + Fraud Reports ── */}
+      <div className="grid grid-cols-2">
+        {/* Cancelled */}
+        <div className="px-4 py-3">
           <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-widest mb-1">Cancelled</p>
           <p className="text-[18px] font-black leading-none text-red-400">{cancelRate}%</p>
         </div>
-      </div>
 
-      {/* ── Divider ── */}
-      <div className="mx-4 border-t border-gray-800" />
-
-      {/* ── Bottom intelligence row ── */}
-      <div className="px-4 py-3 flex items-center justify-between gap-3">
-        <div className="flex items-center gap-2">
-          <Package size={12} className={volumeColor.icon} />
-          <div>
-            <p className="text-[9px] font-semibold text-gray-500 uppercase tracking-widest leading-none mb-0.5">Volume</p>
-            <p className={`text-[12px] font-bold whitespace-nowrap ${volumeColor.text}`}>{volumeLabel}</p>
-          </div>
-        </div>
-        <div className="w-px h-6 bg-gray-800" />
-        <div className="flex items-center gap-2">
-          <ShieldAlert size={12} className={fraudCount > 0 ? 'text-red-400' : 'text-gray-600'} />
-          <div>
-            <p className="text-[9px] font-semibold text-gray-500 uppercase tracking-widest leading-none mb-0.5">Fraud Reports</p>
-            <p className={`text-[12px] font-bold ${fraudCount > 0 ? 'text-red-400' : 'text-gray-500'}`}>
-              {fraudCount > 0 ? fraudCount : '—'}
-            </p>
-          </div>
+        {/* Vertical divider */}
+        <div className={`relative border-l border-gray-700/60 px-4 py-3 flex flex-col items-center justify-center ${fraudCount >= 1 ? 'bg-red-500/15' : ''}`}>
+          <p className={`text-[10px] font-semibold uppercase tracking-widest mb-1 flex items-center gap-1 ${fraudCount >= 1 ? 'text-red-400' : 'text-gray-500'}`}>
+            <ShieldAlert size={10} className={fraudCount >= 1 ? 'text-red-400' : 'text-gray-600'} />
+            Fraud Reports
+          </p>
+          <p className={`text-[22px] font-black leading-none ${fraudCount >= 1 ? 'text-red-400' : 'text-gray-500'}`}>
+            {fraudCount >= 1 ? fraudCount : '—'}
+          </p>
         </div>
       </div>
 

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   User,
   Phone,
@@ -16,9 +16,113 @@ import {
   AlertCircle,
   Smartphone,
   StickyNote,
-  ArrowLeft
+  ArrowLeft,
+  Loader2
 } from "lucide-react";
 import Link from "next/link"; // Assuming you use Next.js Link
+
+const InlineSteadfastWidget = ({ phone }) => {
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    const cleanPhone = phone?.replace(/[^0-9]/g, '') || '';
+    if (cleanPhone.length < 11 || !cleanPhone.startsWith("01")) {
+      setData(null);
+      setError(null);
+      return;
+    }
+
+    let isMounted = true;
+    setLoading(true);
+    setError(null);
+
+    // Small debounce to avoid spamming as they type
+    const timer = setTimeout(() => {
+      fetch(`/api/check-delivery?phone=${encodeURIComponent(cleanPhone)}`)
+        .then(r => r.json().then(j => ({ ok: r.ok, j })))
+        .then(({ ok, j }) => {
+          if (!isMounted) return;
+          if (!ok) throw new Error(j.error || 'Failed');
+          setData(j);
+        })
+        .catch(e => {
+          if (isMounted) setError(e.message);
+        })
+        .finally(() => {
+          if (isMounted) setLoading(false);
+        });
+    }, 500);
+
+    return () => { 
+      isMounted = false;
+      clearTimeout(timer);
+    };
+  }, [phone]);
+
+  const cleanPhone = phone?.replace(/[^0-9]/g, '') || '';
+  if (cleanPhone.length < 11 || !cleanPhone.startsWith("01")) return null;
+
+  if (loading) return (
+    <div className="mt-2 flex items-center gap-2 text-[11px] text-gray-500">
+      <Loader2 size={12} className="animate-spin" /> Checking Steadfast network...
+    </div>
+  );
+
+  if (error) return (
+    <div className="mt-2 flex items-center gap-2 text-[11px] text-red-500">
+      <AlertCircle size={12} /> {error}
+    </div>
+  );
+
+  if (!data) return null;
+
+  const rate = data.delivery_ratio ?? 0;
+  const cancelRate = data.cancellation_ratio ?? 0;
+  const totalReports = data.total_reports ?? data.total_parcels ?? 0;
+  
+  const isNew = data.volume_band === 'none' || data.delivery_ratio === null;
+
+  if (isNew) return (
+    <div className="mt-2 flex items-center gap-2 text-[11px] text-gray-500">
+      <CheckCircle size={12} /> New Customer — no history yet
+    </div>
+  );
+
+  const volumeMap = {
+    none:   null,
+    low:    'Low (1–5)',
+    medium: 'Medium (6–20)',
+    high:   'High (21–200)',
+  };
+  const volumeBand = data.volume_band ? (volumeMap[data.volume_band.toLowerCase()] || data.volume_band) 
+    : totalReports > 20 ? 'High (21–200)' : totalReports > 5 ? 'Medium (6–20)' : 'Low (1–5)';
+  const fraudReports = data.total_reports ?? 0;
+
+  const isGood = rate >= 70;
+  const isBad = rate < 50;
+  const rateColor = isGood ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : isBad ? 'bg-red-500/10 text-red-400 border-red-500/20' : 'bg-amber-500/10 text-amber-400 border-amber-500/20';
+
+  return (
+    <div className="mt-2 flex flex-wrap items-center gap-3 text-[11px] bg-[#1a1f2e] px-3 py-2 rounded-lg border border-gray-700/50 shadow-inner">
+      <span className={`px-2 py-0.5 rounded-full font-bold border ${rateColor}`}>
+        {rate}% Success
+      </span>
+      <span className="text-gray-400 flex items-center gap-1.5">
+        Cancelled <span className={`font-bold ${cancelRate > 20 ? 'text-red-400' : 'text-emerald-400'}`}>{cancelRate}%</span>
+      </span>
+      <span className="text-gray-600">|</span>
+      <span className="text-gray-400 flex items-center gap-1.5">
+        Parcel volume <span className="px-2 py-0.5 rounded-full font-bold bg-blue-500/10 text-blue-400 border border-blue-500/20">{volumeBand} ({totalReports})</span>
+      </span>
+      <span className="text-gray-600">|</span>
+      <span className="text-gray-400 flex items-center gap-1.5">
+        Fraud reports <span className={`font-bold ${fraudReports > 0 ? 'text-red-400' : 'text-gray-400'}`}>{fraudReports}</span>
+      </span>
+    </div>
+  );
+};
 
 export default function ManualOrderPage() {
   const [loading, setLoading] = useState(false);
@@ -188,6 +292,7 @@ export default function ManualOrderPage() {
                                     className="w-full bg-gray-950 border border-gray-700 rounded-lg py-2.5 pl-10 pr-4 text-sm text-white focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all placeholder:text-gray-600"
                                 />
                             </div>
+                            <InlineSteadfastWidget phone={formData.number} />
                         </div>
                     </div>
 

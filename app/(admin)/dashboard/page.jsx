@@ -217,11 +217,13 @@ async function processQueue() {
         continue;
       }
 
-      const total = j.total_parcels ?? j.parcel_count ?? 0;
+      const total = j.total_parcels ?? j.parcel_count ?? j.total_reports ?? 0;
       const delivered = j.total_delivered ?? j.delivered_count ?? 0;
       const cancelled = j.total_cancelled ?? j.return_count ?? 0;
-      const rate = total > 0 ? Math.round((delivered / total) * 100) : null;
-      const result = r.ok ? { rate, total, delivered, cancelled } : 'error';
+      // Use delivery_ratio directly from API — avoids double-rounding through normalization math
+      const rate = j.delivery_ratio !== undefined ? j.delivery_ratio : (total > 0 ? Math.round((delivered / total) * 100) : null);
+      const cancelRate = j.cancellation_ratio !== undefined ? j.cancellation_ratio : (total > 0 ? Math.round((cancelled / total) * 100) : null);
+      const result = r.ok ? { rate, total, delivered, cancelled, cancelRate, raw: j } : 'error';
       
       _sfCache.set(phone, result);
       _sfListeners.get(phone)?.forEach(cb => cb(result));
@@ -291,9 +293,11 @@ const SteadfastPill = ({ phone }) => {
     </div>
   );
 
-  const { rate, total, delivered, cancelled } = result;
+  const { rate, total, delivered, cancelled, raw } = result;
 
-  if (total === 0) return (
+  const isNew = raw ? (raw.volume_band === 'none' || raw.delivery_ratio === null) : (total === 0 && rate === null);
+
+  if (isNew) return (
     <div className="inline-flex items-center gap-1.5 text-xs font-bold text-gray-400 bg-gray-800/80 border border-gray-700/80 px-2.5 py-1.5 rounded-lg shadow-sm" title="No Steadfast history">
       <Shield size={14} className="shrink-0 text-gray-500" />
       <span>New</span>
@@ -319,81 +323,175 @@ const SteadfastPill = ({ phone }) => {
   );
 };
 
-// --- UPDATED FRAUD CHECKER BADGE (Full Width for Action Column) ---
+// --- FRAUD CHECKER BADGE (Premium Modal View) ---
 const FraudCheckerBadge = ({ phone }) => {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    if (!phone) {
-      setLoading(false);
-      return;
-    }
-    const checkStatus = async () => {
-      try {
-        const res = await fetch(`/api/check-delivery?phone=${encodeURIComponent(phone)}`);
-        const json = await res.json();
-        if (!res.ok) throw new Error(json.error || "Failed to check status");
-        setData(json);
-      } catch (err) {
-        setError(err.message);
-      } finally {
-        setLoading(false);
-      }
-    };
-    checkStatus();
+    if (!phone) { setLoading(false); return; }
+    // Always fetch fresh from server (bypasses stale in-memory cache)
+    fetch(`/api/check-delivery?phone=${encodeURIComponent(phone)}`)
+      .then(r => r.json().then(j => ({ ok: r.ok, j })))
+      .then(({ ok, j }) => {
+        if (!ok) throw new Error(j.error || 'Failed');
+        setData(j);
+      })
+      .catch(e => setError(e.message))
+      .finally(() => setLoading(false));
   }, [phone]);
 
   if (loading) return (
-    <div className="mt-4 p-3 rounded-xl border border-gray-700/50 bg-gray-800/40 flex items-center justify-center gap-2">
-      <Loader2 className="animate-spin text-indigo-400 w-4 h-4" />
-      <span className="text-xs text-gray-400">Checking Steadfast Record...</span>
+    <div className="mt-4 p-5 rounded-2xl border border-gray-700/50 bg-gray-800/40 flex items-center justify-center gap-3">
+      <Loader2 className="animate-spin text-indigo-400 w-5 h-5" />
+      <span className="text-sm font-medium text-gray-400">Checking Steadfast history...</span>
     </div>
   );
   if (error) return (
-    <div className="mt-4 p-3 rounded-xl border border-red-500/20 bg-red-500/10 flex items-center gap-2">
-      <AlertTriangle className="text-red-400 w-4 h-4" />
-      <span className="text-xs text-red-400" title={error}>Failed: {error}</span>
+    <div className="mt-4 p-4 rounded-2xl border border-red-500/20 bg-red-500/10 flex items-center gap-3">
+      <AlertTriangle className="text-red-400 w-5 h-5 shrink-0" />
+      <span className="text-sm font-medium text-red-400">{error}</span>
     </div>
   );
   if (!data) return null;
 
-  const total = data.total_parcels ?? data.parcel_count ?? 0;
-  const delivered = data.total_delivered ?? data.delivered_count ?? 0;
-  const cancelled = data.total_cancelled ?? data.return_count ?? 0;
-  
-  // Calculate success rate manually just to be safe
-  const rate = total > 0 ? Math.round((delivered / total) * 100) : 0;
+  // Use API fields directly — no re-calculation to avoid rounding drift
+  const rate = data.delivery_ratio ?? 0;
+  const cancelRate = data.cancellation_ratio ?? 0;
+  const totalParcels = data.total_parcels ?? 0;
+  const volumeBand = data.volume_band ?? null;
+  const fraudCount = data.total_reports ?? 0; // Steadfast renamed fraud count to total_reports
+  const fraudCats = Array.isArray(data.fraud_categories) ? data.fraud_categories : [];
+  const doubtful = data.doubtful_reports;
 
   const isGood = rate >= 70;
-  const isBad = rate < 50 && total > 0;
+  const isBad = rate < 50 && (totalParcels > 0 || volumeBand);
+
+  const accent = isGood
+    ? { text: 'text-emerald-400', bg: 'bg-emerald-500/15', border: 'border-emerald-500/30', stroke: '#10b981', track: '#064e3b' }
+    : isBad
+    ? { text: 'text-red-400',     bg: 'bg-red-500/15',     border: 'border-red-500/30',     stroke: '#ef4444', track: '#450a0a' }
+    : { text: 'text-amber-400',   bg: 'bg-amber-500/15',   border: 'border-amber-500/30',   stroke: '#f59e0b', track: '#451a03' };
+
+  const label = isGood ? 'Trusted' : isBad ? 'High Risk' : 'Neutral';
+
+  // Clean phone masking: always extract the 01XXXXXXXXX part and mask middle 4 digits
+  const localPhone = (phone.match(/(01[3-9]\d{8})/) || [])[1] || phone;
+  const maskedPhone = localPhone.length === 11
+    ? `${localPhone.slice(0, 4)}****${localPhone.slice(8)}`
+    : phone;
+
+  // Volume band display
+  const volumeMap = {
+    none:   null,
+    low:    'Low (1–5)',
+    medium: 'Medium (6–20)',
+    high:   'High (21–200)',
+  };
+  const volumeLabel = volumeBand ? (volumeMap[volumeBand.toLowerCase()] || volumeBand) 
+    : totalParcels > 20 ? 'High (21–200)' : totalParcels > 5 ? 'Medium (6–20)' : totalParcels > 0 ? 'Low (1–5)' : '—';
   
+  const volumeColor = volumeBand === 'high' || totalParcels > 20 
+    ? { bg: 'bg-emerald-500/10', text: 'text-emerald-400', icon: 'text-emerald-500' }
+    : volumeBand === 'medium' || (totalParcels > 5 && totalParcels <= 20)
+    ? { bg: 'bg-blue-500/10', text: 'text-blue-400', icon: 'text-blue-500' }
+    : volumeBand === 'low' || (totalParcels > 0 && totalParcels <= 5)
+    ? { bg: 'bg-amber-500/10', text: 'text-amber-400', icon: 'text-amber-500' }
+    : { bg: 'bg-gray-800/40', text: 'text-gray-400', icon: 'text-gray-500' };
+
   return (
-    <div className={`mt-4 p-4 rounded-xl border ${isGood ? 'bg-green-500/10 border-green-500/20 shadow-[0_0_10px_rgba(34,197,94,0.1)]' : isBad ? 'bg-red-500/10 border-red-500/20 shadow-[0_0_10px_rgba(239,68,68,0.1)]' : 'bg-yellow-500/10 border-yellow-500/20 shadow-[0_0_10px_rgba(234,179,8,0.1)]'} backdrop-blur-sm transition-all`}>
-       <div className="flex items-center justify-between mb-3 border-b border-white/5 pb-2">
-         <div className="flex items-center gap-2">
-           {isGood ? <ShieldCheck className="text-green-400" size={16} /> : isBad ? <AlertTriangle className="text-red-400" size={16} /> : <Shield className="text-yellow-400" size={16} />}
-           <span className="text-xs font-bold text-gray-200 uppercase tracking-widest">Steadfast History</span>
-         </div>
-         <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${isGood ? 'bg-green-500/20 text-green-400' : isBad ? 'bg-red-500/20 text-red-400' : 'bg-yellow-500/20 text-yellow-400'}`}>
-           {isGood ? 'TRUSTED' : isBad ? 'HIGH RISK' : 'NEUTRAL'}
-         </span>
-       </div>
-       <div className="grid grid-cols-3 gap-2">
-         <div className="flex flex-col items-center justify-center bg-black/20 p-2 rounded-lg">
-            <span className="text-[10px] text-gray-400 uppercase tracking-wide mb-1">Success</span>
-            <span className={`text-lg font-black tracking-tight ${isGood ? 'text-green-400' : isBad ? 'text-red-400' : 'text-yellow-400'}`}>{rate}%</span>
-         </div>
-         <div className="flex flex-col items-center justify-center bg-black/20 p-2 rounded-lg">
-            <span className="text-[10px] text-gray-400 uppercase tracking-wide mb-1">Delivered</span>
-            <span className="text-base font-bold text-gray-200">{delivered}</span>
-         </div>
-         <div className="flex flex-col items-center justify-center bg-black/20 p-2 rounded-lg">
-            <span className="text-[10px] text-gray-400 uppercase tracking-wide mb-1">Cancelled</span>
-            <span className="text-base font-bold text-gray-200">{cancelled}</span>
-         </div>
-       </div>
+    <div className="mt-4 rounded-xl border border-gray-700/50 bg-[#0f1117] overflow-hidden">
+
+      {/* ── Header row: title + trust badge ── */}
+      <div className="px-4 pt-4 pb-3 flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <Package size={13} className="text-gray-500" />
+          <span className="text-[11px] font-semibold text-gray-400 tracking-wide uppercase">Customer Delivery Profile</span>
+        </div>
+        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md uppercase tracking-widest ${accent.bg} ${accent.text} border ${accent.border}`}>
+          {label}
+        </span>
+      </div>
+
+      {/* ── Main metric ── */}
+      <div className="px-4 pb-3">
+        <div className="flex items-end gap-2 mb-2">
+          <span className={`text-[32px] font-black leading-none ${accent.text}`}>{rate}%</span>
+          <span className="text-sm font-semibold text-gray-400 mb-1">Delivery Success</span>
+        </div>
+        {/* Progress bar */}
+        <div className="w-full h-1.5 bg-gray-800 rounded-full overflow-hidden">
+          <div
+            className="h-full rounded-full transition-all duration-700 ease-out"
+            style={{ width: `${rate}%`, background: accent.stroke }}
+          />
+        </div>
+      </div>
+
+      {/* ── Divider ── */}
+      <div className="mx-4 border-t border-gray-800" />
+
+      {/* ── Delivered / Cancelled comparison ── */}
+      <div className="px-4 py-3 grid grid-cols-2 gap-3">
+        <div>
+          <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-widest mb-1">Delivered</p>
+          <p className={`text-[18px] font-black leading-none ${accent.text}`}>{rate}%</p>
+        </div>
+        <div>
+          <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-widest mb-1">Cancelled</p>
+          <p className="text-[18px] font-black leading-none text-red-400">{cancelRate}%</p>
+        </div>
+      </div>
+
+      {/* ── Divider ── */}
+      <div className="mx-4 border-t border-gray-800" />
+
+      {/* ── Bottom intelligence row ── */}
+      <div className="px-4 py-3 flex items-center justify-between gap-3">
+        <div className="flex items-center gap-2">
+          <Package size={12} className={volumeColor.icon} />
+          <div>
+            <p className="text-[9px] font-semibold text-gray-500 uppercase tracking-widest leading-none mb-0.5">Volume</p>
+            <p className={`text-[12px] font-bold whitespace-nowrap ${volumeColor.text}`}>{volumeLabel}</p>
+          </div>
+        </div>
+        <div className="w-px h-6 bg-gray-800" />
+        <div className="flex items-center gap-2">
+          <ShieldAlert size={12} className={fraudCount > 0 ? 'text-red-400' : 'text-gray-600'} />
+          <div>
+            <p className="text-[9px] font-semibold text-gray-500 uppercase tracking-widest leading-none mb-0.5">Fraud Reports</p>
+            <p className={`text-[12px] font-bold ${fraudCount > 0 ? 'text-red-400' : 'text-gray-500'}`}>
+              {fraudCount > 0 ? fraudCount : '—'}
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {/* ── Fraud category tags (only if present) ── */}
+      {fraudCats.length > 0 && (
+        <div className="mx-4 mb-3 pt-2 border-t border-gray-800 space-y-1.5">
+          <p className="text-[9px] font-semibold text-gray-500 uppercase tracking-widest flex items-center gap-1">
+            <ShieldAlert size={9} className="text-red-400" /> Reported As
+          </p>
+          <div className="flex flex-wrap gap-1.5">
+            {fraudCats.map((cat, idx) => (
+              <span key={idx}
+                className="px-2 py-0.5 rounded text-[10px] font-semibold bg-red-500/10 border border-red-500/20 text-red-300">
+                {cat.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* ── Doubtful flag (only if present) ── */}
+      {doubtful && (
+        <div className="mx-4 mb-3 flex items-center gap-2 bg-amber-500/8 border border-amber-500/20 rounded-lg px-3 py-2">
+          <AlertTriangle size={11} className="text-amber-400 shrink-0" />
+          <p className="text-[11px] font-medium text-amber-300">Flagged as doubtful by Steadfast network</p>
+        </div>
+      )}
     </div>
   );
 };

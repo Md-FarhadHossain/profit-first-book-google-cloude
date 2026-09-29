@@ -32,19 +32,26 @@ export async function GET(request) {
 
   cleanPhone = match[1];
 
-  // 1. CHECK DATABASE CACHE FIRST
+  // 1. CHECK DATABASE CACHE FIRST (max 24 hours old)
   try {
     const cached = await db.select().from(steadfastHistory).where(eq(steadfastHistory.phone, cleanPhone)).limit(1);
     if (cached && cached.length > 0) {
-      return NextResponse.json(cached[0].data, { headers: { 'X-Cache': 'HIT' } });
+      const cacheAge = Date.now() - new Date(cached[0].updatedAt).getTime();
+      const CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
+      if (cacheAge < CACHE_TTL_MS) {
+        return NextResponse.json(cached[0].data, { headers: { 'X-Cache': 'HIT' } });
+      }
+      // Cache is stale — fall through to live API
+      console.log(`Steadfast cache stale for ${cleanPhone} (${Math.round(cacheAge / 3600000)}h old), refreshing...`);
     }
   } catch (dbErr) {
     console.error('Error checking steadfast cache:', dbErr);
   }
 
+  // NOTE: Steadfast updated their API — the correct path is now /fraud_check/score/{phone}
   const urls = [
-    `https://portal.steadfast.com.bd/api/v1/fraud_check/${cleanPhone}`,
-    `https://portal.packzy.com/api/v1/fraud_check/${cleanPhone}`
+    `https://portal.packzy.com/api/v1/fraud_check/score/${cleanPhone}`,
+    `https://portal.steadfast.com.bd/api/v1/fraud_check/score/${cleanPhone}`
   ];
 
   let lastError = null;
@@ -78,6 +85,9 @@ export async function GET(request) {
       }
 
       successResponse = await response.json();
+      
+      // We do not normalize total_reports to total_parcels because total_reports is for fraud reports.
+
       break; 
     } catch (error) {
       lastError = { status: 500, message: error.message };

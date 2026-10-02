@@ -189,6 +189,28 @@ const getDeepUserAgentInfo = (uaString) => {
 };
 
 // --- SHARED STEADFAST FETCH CACHE & QUEUE (module-level, survives re-renders) ---
+// sessionStorage key prefix for cross-reload persistence
+const SF_SESSION_KEY = 'sf_cache_v1';
+const SF_SESSION_TTL_MS = 6 * 60 * 60 * 1000; // 6 hours in sessionStorage
+
+function _ssGet(phone) {
+  try {
+    const raw = sessionStorage.getItem(`${SF_SESSION_KEY}:${phone}`);
+    if (!raw) return null;
+    const { ts, value } = JSON.parse(raw);
+    if (Date.now() - ts > SF_SESSION_TTL_MS) {
+      sessionStorage.removeItem(`${SF_SESSION_KEY}:${phone}`);
+      return null;
+    }
+    return value;
+  } catch { return null; }
+}
+function _ssSet(phone, value) {
+  try {
+    sessionStorage.setItem(`${SF_SESSION_KEY}:${phone}`, JSON.stringify({ ts: Date.now(), value }));
+  } catch { /* quota exceeded or SSR — ignore */ }
+}
+
 const _sfCache = new Map(); // phone -> { rate, total, delivered, cancelled } | 'loading' | 'error'
 const _sfListeners = new Map(); // phone -> Set of setState callbacks
 
@@ -226,6 +248,8 @@ async function processQueue() {
       const result = r.ok ? { rate, total, delivered, cancelled, cancelRate, raw: j } : 'error';
       
       _sfCache.set(phone, result);
+      // Persist to sessionStorage so page reloads don't lose this data
+      if (result !== 'error') _ssSet(phone, result);
       _sfListeners.get(phone)?.forEach(cb => cb(result));
       _sfListeners.delete(phone);
       
@@ -256,6 +280,15 @@ function fetchSteadfastForPhone(phone, onResult) {
     _sfListeners.get(phone)?.add(onResult);
     return;
   }
+
+  // Check sessionStorage before making any network request
+  const ssValue = _ssGet(phone);
+  if (ssValue) {
+    _sfCache.set(phone, ssValue);
+    onResult(ssValue);
+    return;
+  }
+
   _sfCache.set(phone, 'loading');
   _sfListeners.set(phone, new Set([onResult]));
 

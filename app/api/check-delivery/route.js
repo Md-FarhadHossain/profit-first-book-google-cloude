@@ -25,30 +25,49 @@ export async function GET(request) {
   const match = cleanPhone.match(/(01[3-9]\d{8})/);
 
   if (!match) {
-    return NextResponse.json({ 
-      error: 'Invalid Bangladeshi phone number. Could not find 11 digits starting with 01.' 
+    return NextResponse.json({
+      error: 'Invalid Bangladeshi phone number. Could not find 11 digits starting with 01.'
     }, { status: 400 });
   }
 
   cleanPhone = match[1];
 
-  // 1. CHECK DATABASE CACHE FIRST (max 24 hours old)
-  try {
-    const cached = await db.select().from(steadfastHistory).where(eq(steadfastHistory.phone, cleanPhone)).limit(1);
-    if (cached && cached.length > 0) {
-      const cacheAge = Date.now() - new Date(cached[0].updatedAt).getTime();
-      const CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
-      if (cacheAge < CACHE_TTL_MS) {
+  // ?refresh=true → bypass DB cache and fetch fresh from Steadfast (manual override only)
+  const forceRefresh = searchParams.get('refresh') === 'true';
+
+  // ─────────────────────────────────────────────────────────────────
+  // STEP 1: CHECK DATABASE — if data exists, return it IMMEDIATELY.
+  //
+  // This is a PERMANENT cache: once a phone number's data is saved,
+  // we NEVER call the Steadfast API again for it. The API is called
+  // exactly ONE time per phone number, ever.
+  //
+  // Use ?refresh=true only when you explicitly need updated data.
+  // ─────────────────────────────────────────────────────────────────
+  if (!forceRefresh) {
+    try {
+      const cached = await db
+        .select()
+        .from(steadfastHistory)
+        .where(eq(steadfastHistory.phone, cleanPhone))
+        .limit(1);
+
+      if (cached && cached.length > 0) {
+        // Data exists in DB → return instantly, no API call at all.
+        console.log(`[SF Cache] PERMANENT HIT for ${cleanPhone} — serving from DB, no API call.`);
         return NextResponse.json(cached[0].data, { headers: { 'X-Cache': 'HIT' } });
       }
-      // Cache is stale — fall through to live API
-      console.log(`Steadfast cache stale for ${cleanPhone} (${Math.round(cacheAge / 3600000)}h old), refreshing...`);
+    } catch (dbErr) {
+      console.error('[SF Cache] DB read error:', dbErr);
+      // Fall through to live API if DB fails
     }
-  } catch (dbErr) {
-    console.error('Error checking steadfast cache:', dbErr);
   }
 
-  // NOTE: Steadfast updated their API — the correct path is now /fraud_check/score/{phone}
+  // ─────────────────────────────────────────────────────────────────
+  // STEP 2: FIRST TIME — call Steadfast API (only happens once ever)
+  // ─────────────────────────────────────────────────────────────────
+  console.log(`[SF Cache] MISS for ${cleanPhone} — calling Steadfast API for the first (and last) time.`);
+
   const urls = [
     `https://portal.packzy.com/api/v1/fraud_check/score/${cleanPhone}`,
     `https://portal.steadfast.com.bd/api/v1/fraud_check/score/${cleanPhone}`
@@ -66,53 +85,55 @@ export async function GET(request) {
           'Secret-Key': secretKey,
           'Content-Type': 'application/json'
         },
-        // Adding a short timeout to prevent hanging, Next.js fetch API can use AbortController if needed
-        // but default is usually fine for serverless.
       });
 
       if (!response.ok) {
         const errText = await response.text();
         let errJson;
         try { errJson = JSON.parse(errText); } catch (e) {}
-        
+
         const errMsg = errJson?.message || errJson?.error || `Steadfast API returned status ${response.status}`;
         lastError = { status: response.status, message: errMsg };
-        
+
         if (response.status >= 400 && response.status < 500) {
-          break; // Client error, don't retry
+          break; // Client error — don't retry with second URL
         }
         continue;
       }
 
       successResponse = await response.json();
-      
-      // We do not normalize total_reports to total_parcels because total_reports is for fraud reports.
-
-      break; 
+      break;
     } catch (error) {
       lastError = { status: 500, message: error.message };
     }
   }
 
   if (successResponse) {
-    // 2. SAVE TO DATABASE CACHE
+    // ─────────────────────────────────────────────────────────────
+    // STEP 3: SAVE TO DATABASE PERMANENTLY
+    // This phone number will NEVER hit the API again after this.
+    // ─────────────────────────────────────────────────────────────
     try {
+      const nowIso = new Date().toISOString();
       await db.insert(steadfastHistory).values({
         phone: cleanPhone,
         data: successResponse,
+        updatedAt: nowIso,
       }).onConflictDoUpdate({
         target: steadfastHistory.phone,
-        set: { data: successResponse, updatedAt: new Date().toISOString() }
+        set: { data: successResponse, updatedAt: nowIso }
       });
+      console.log(`[SF Cache] SAVED permanently for ${cleanPhone}.`);
     } catch (dbErr) {
-      console.error('Error saving steadfast cache:', dbErr);
+      console.error('[SF Cache] DB save error:', dbErr);
     }
+
     return NextResponse.json(successResponse);
   } else {
-    const isDnsError = lastError.message.includes('ENOTFOUND') || lastError.message.includes('EAI_AGAIN') || lastError.message.includes('fetch failed');
-    const displayMsg = isDnsError 
+    const isDnsError = lastError?.message?.includes('ENOTFOUND') || lastError?.message?.includes('EAI_AGAIN') || lastError?.message?.includes('fetch failed');
+    const displayMsg = isDnsError
       ? 'Failed to resolve Steadfast API domains. Please verify your internet connection or check your API keys.'
-      : lastError.message;
-    return NextResponse.json({ error: displayMsg }, { status: lastError.status || 500 });
+      : (lastError?.message || 'Unknown error');
+    return NextResponse.json({ error: displayMsg }, { status: lastError?.status || 500 });
   }
 }

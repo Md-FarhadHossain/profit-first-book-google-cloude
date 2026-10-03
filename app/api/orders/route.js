@@ -178,7 +178,7 @@ export async function POST(request) {
             ]
           };
 
-          const fbGraphUrl = `https://graph.facebook.com/v18.0/${pixelId}/events?access_token=${accessToken}`;
+          const fbGraphUrl = `https://graph.facebook.com/v22.0/${pixelId}/events?access_token=${accessToken}`;
           
           await fetch(fbGraphUrl, {
             method: 'POST',

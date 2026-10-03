@@ -97,7 +97,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ success: false, message: "Server CAPI tokens not configured" }, { status: 500 });
     }
 
-    const fbGraphUrl = `https://graph.facebook.com/v18.0/${pixelId}/events?access_token=${accessToken}`;
+    const fbGraphUrl = `https://graph.facebook.com/v22.0/${pixelId}/events?access_token=${accessToken}`;
 
     // Post securely to Facebook
     const fbRes = await fetch(fbGraphUrl, {

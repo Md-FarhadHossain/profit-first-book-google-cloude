@@ -29,7 +29,7 @@ async function sendCAPIOrderProcessed(order) {
         const accessToken = process.env.FB_ACCESS_TOKEN;
         if (!pixelId || !accessToken) return;
 
-        let fbc, fbp, client_ip, client_user_agent, email;
+        let fbc, fbp, client_ip, client_user_agent, email, deviceId;
         
         if (order.clientInfo) {
             try {
@@ -39,6 +39,7 @@ async function sendCAPIOrderProcessed(order) {
                 client_ip = ci.ip;
                 client_user_agent = ci.userAgent;
                 email = ci.email;
+                deviceId = ci.deviceId; // device_id for external_id matching
             } catch (e) {}
         }
         
@@ -70,7 +71,7 @@ async function sendCAPIOrderProcessed(order) {
                     event_name: 'OrderProcessed',
                     event_time: Math.floor(Date.now() / 1000),
                     action_source: 'website',
-                    event_source_url: 'https://profitfirst.com.bd', // Fallback URL
+                    event_source_url: process.env.NEXT_PUBLIC_SITE_URL || 'https://oranote.site',
                     event_id: `processed_${order.orderId}`,
                     user_data: {
                         ph: phone ? hashData(normalizePhone(phone)) : undefined,
@@ -85,6 +86,8 @@ async function sendCAPIOrderProcessed(order) {
                         fbp,
                         client_ip_address: client_ip,
                         client_user_agent: client_user_agent,
+                        // external_id for cross-device identity matching
+                        external_id: deviceId ? hashData(deviceId) : undefined,
                     },
                     custom_data: {
                         currency: order.currency || 'BDT',
@@ -96,7 +99,7 @@ async function sendCAPIOrderProcessed(order) {
             ...(process.env.FACEBOOK_TEST_EVENT_CODE ? { test_event_code: process.env.FACEBOOK_TEST_EVENT_CODE } : {})
         };
 
-        const fbGraphUrl = `https://graph.facebook.com/v18.0/${pixelId}/events?access_token=${accessToken}`;
+        const fbGraphUrl = `https://graph.facebook.com/v22.0/${pixelId}/events?access_token=${accessToken}`;
         const res = await fetch(fbGraphUrl, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },

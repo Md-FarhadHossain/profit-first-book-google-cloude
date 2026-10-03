@@ -51,12 +51,7 @@ function PixelTracker() {
       if (np.length > 1) pageViewUserData.ln = np.slice(1).join(' ').toLowerCase();
     }
 
-    // Fire browser pixel PageView
-    if (typeof window !== "undefined" && (window as any).fbq) {
-      (window as any).fbq("track", "PageView");
-    }
-
-    // Fire server-side CAPI PageView (adds IP + geo on server)
+    // Fire browser and server-side CAPI PageView (with deduplication)
     trackPageView(pageViewUserData);
   }, [pathname, searchParams]);
 
@@ -108,6 +103,23 @@ export default function FacebookPixel() {
                 if (np.length > 0) advancedMatching.fn = np[0].toLowerCase();
                 if (np.length > 1) advancedMatching.ln = np.slice(1).join(' ').toLowerCase();
               }
+
+              // 4. Address Location
+              var district = window.localStorage.getItem('billing_district');
+              if (district) advancedMatching.st = district.toLowerCase();
+
+              var thana = window.localStorage.getItem('billing_thana');
+              if (thana) advancedMatching.ct = thana.toLowerCase();
+
+              var zip = window.localStorage.getItem('billing_zip');
+              if (zip) advancedMatching.zp = zip;
+
+              // 5. Gender & Country
+              var gender = window.localStorage.getItem('billing_gender');
+              if (gender === 'm' || gender === 'f') {
+                advancedMatching.ge = gender;
+              }
+              advancedMatching.country = 'bd'; // Default to Bangladesh
             } catch(e) {}
 
             if (Object.keys(advancedMatching).length > 0) {
@@ -115,8 +127,6 @@ export default function FacebookPixel() {
             } else {
               fbq('init', '${FB_PIXEL_ID}');
             }
-            
-            fbq('track', 'PageView');
           `,
         }}
       />

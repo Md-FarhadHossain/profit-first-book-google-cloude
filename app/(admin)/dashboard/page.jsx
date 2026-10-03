@@ -2122,8 +2122,18 @@ export default function App() {
         if (isInDateRange) {
           counts[order.status]++;
         }
+      } else if (order.status === "Shipped") {
+        // SHIPPED: count only orders that are ACTIVELY in transit with Steadfast.
+        // courierStatus reflects the real-time state from Steadfast API.
+        // Active transit statuses: in_review, pending, shipped, in_transit, out_for_delivery, hold.
+        // This matches what Steadfast's "Delivery processing" counter shows.
+        const ACTIVE_COURIER_STATUSES = ['in_review', 'pending', 'shipped', 'in_transit', 'out_for_delivery', 'hold'];
+        const cs = (order.courierStatus || '').toLowerCase();
+        if (ACTIVE_COURIER_STATUSES.includes(cs) || cs === '') {
+          counts["Shipped"]++;
+        }
       } else {
-        // Standard Status Count
+        // Standard Status Count (no date filter for active/non-terminal statuses)
         if (counts[order.status] !== undefined) {
           counts[order.status]++;
         } else if (order.status === "Fake") {

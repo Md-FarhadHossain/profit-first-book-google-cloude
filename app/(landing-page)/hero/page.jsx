@@ -68,8 +68,15 @@ const HeroSection = () => {
   const getAdvancedMatchingData = () => {
       let ud = {
          country: "bd", // Country is always Bangladesh
-         // ct and st are resolved from IP geolocation on the server
       };
+      
+      const savedDistrict = localStorage.getItem("billing_district");
+      const savedThana = localStorage.getItem("billing_thana");
+      const savedZip = localStorage.getItem("billing_zip");
+      
+      if (savedDistrict) ud.st = savedDistrict.toLowerCase();
+      if (savedThana) ud.ct = savedThana.toLowerCase();
+      if (savedZip) ud.zp = savedZip;
       
       // Phone: formData first (just typed), then localStorage (returning visitors from past purchases)
       // This means scroll/video events on returning visitors will carry hashed phone → higher EMQ
@@ -454,6 +461,11 @@ const HeroSection = () => {
         localStorage.setItem("billing_phone", number);
         if (result.gender) {
           localStorage.setItem("billing_gender", result.gender);
+        }
+        if (result.district) {
+          localStorage.setItem("billing_district", result.district);
+          if (result.thana) localStorage.setItem("billing_thana", result.thana);
+          if (result.zip) localStorage.setItem("billing_zip", result.zip);
         }
       } catch (e) {}
 

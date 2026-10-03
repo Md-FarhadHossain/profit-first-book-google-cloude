@@ -3,6 +3,7 @@ import { db } from '@/lib/db';
 import { orders, partialOrders } from '@/lib/db/schema';
 import { eq, or, and, not, inArray } from 'drizzle-orm';
 import { sendConfirmationSMS } from '@/lib/smsProvider';
+import { parseAddress } from '@/lib/addressParser';
 
 export async function POST(request) {
   try {
@@ -70,6 +71,10 @@ export async function POST(request) {
     }
     // =====================================
     
+    // ======== ADDRESS PARSING ========
+    const parsedLocation = parseAddress(data.address);
+    // =================================
+    
     const inserted = await db.insert(orders).values({
       orderId,
       name: data.name,
@@ -86,7 +91,9 @@ export async function POST(request) {
       postType: data.postType,
       clientInfo: data.clientInfo,
       marketing: data.marketing,
-      gender: predictedGender
+      gender: predictedGender,
+      district: parsedLocation.district,
+      thana: parsedLocation.thana
     }).returning({ id: orders.id, orderId: orders.orderId, gender: orders.gender });
     
     try {
@@ -156,6 +163,10 @@ export async function POST(request) {
                   client_user_agent: userAgent,
                   fbp: userFbp,
                   fbc: userFbc,
+                  st: parsedLocation.district ? hashFn(parsedLocation.district.toLowerCase()) : undefined,
+                  ct: parsedLocation.thana ? hashFn(parsedLocation.thana.toLowerCase()) : undefined,
+                  zp: parsedLocation.postal_code ? hashFn(parsedLocation.postal_code) : undefined,
+                  country: hashFn('bd')
                 },
                 custom_data: {
                   currency: data.currency || 'BDT',
@@ -184,7 +195,10 @@ export async function POST(request) {
       success: true, 
       orderId: inserted[0].orderId, 
       insertedId: inserted[0].id,
-      gender: inserted[0].gender
+      gender: inserted[0].gender,
+      district: parsedLocation.district,
+      thana: parsedLocation.thana,
+      zip: parsedLocation.postal_code
     });
   } catch (error) {
     console.error("Order Creation Error:", error);

@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { partialOrders } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
+import { parseAddress } from '@/lib/addressParser';
 
 export const dynamic = 'force-dynamic';
 
@@ -12,6 +13,8 @@ export async function POST(request) {
     if (!data.deviceId) {
       return NextResponse.json({ success: false, error: 'DeviceId is required' }, { status: 400 });
     }
+    
+    const parsedLocation = parseAddress(data.address);
     
     await db.insert(partialOrders).values({
       deviceId: data.deviceId,
@@ -28,7 +31,9 @@ export async function POST(request) {
       clientInfo: data.clientInfo,
       marketing: data.marketing,
       localTime: data.localTime,
-      gender: data.gender
+      gender: data.gender,
+      district: parsedLocation.district,
+      thana: parsedLocation.thana
     }).onConflictDoUpdate({
       target: partialOrders.deviceId,
       set: {
@@ -43,6 +48,8 @@ export async function POST(request) {
         marketing: data.marketing,
         localTime: data.localTime,
         gender: data.gender,
+        district: parsedLocation.district,
+        thana: parsedLocation.thana,
         date: new Date().toISOString()
       }
     });
@@ -77,6 +84,8 @@ export async function GET(request) {
       status: o.status,
       phoneCallStatus: o.phoneCallStatus,
       gender: o.gender,
+      district: o.district || "",
+      thana: o.thana || "",
       createdAt: (o.date && !o.date.includes('Z') && !o.date.includes('+')) ? o.date.replace(' ', 'T') + 'Z' : o.date,
       date: (o.date && !o.date.includes('Z') && !o.date.includes('+')) ? o.date.replace(' ', 'T') + 'Z' : o.date
     }));

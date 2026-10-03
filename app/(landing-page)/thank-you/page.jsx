@@ -117,6 +117,14 @@ function ThankYouContent() {
         // Country — always Bangladesh (city/state resolved from IP on server)
         userData.country = 'bd';
 
+        const savedDistrict = localStorage.getItem("billing_district");
+        const savedThana = localStorage.getItem("billing_thana");
+        const savedZip = localStorage.getItem("billing_zip");
+        
+        if (savedDistrict) userData.st = savedDistrict.toLowerCase();
+        if (savedThana) userData.ct = savedThana.toLowerCase();
+        if (savedZip) userData.zp = savedZip;
+
         // External ID — use orderId for cross-device matching
         userData.external_id = orderId;
 

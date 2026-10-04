@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 import React, { useState, useEffect } from 'react';
 import { Loader2, XCircle, Shield, ShieldCheck, AlertTriangle, ShieldAlert, Package } from 'lucide-react';
 
@@ -107,18 +107,20 @@ function fetchSteadfastForPhone(phone, onResult) {
 }
 
 // --- COMPACT INLINE PILL FOR LIST ROWS ---
-export const SteadfastPill = ({ phone }) => {
+export const SteadfastPill = ({ phone, initialData }) => {
   const [result, setResult] = useState(() => {
+    if (initialData) return initialData;
     const cached = _sfCache.get(phone);
     return cached !== undefined ? cached : 'loading';
   });
 
   useEffect(() => {
     if (!phone) { setResult('nodata'); return; }
+    if (initialData) { setResult(initialData); return; }
     const cached = _sfCache.get(phone);
     if (cached && cached !== 'loading') { setResult(cached); return; }
     fetchSteadfastForPhone(phone, setResult);
-  }, [phone]);
+  }, [phone, initialData]);
 
   if (!phone || result === 'nodata') return null;
 

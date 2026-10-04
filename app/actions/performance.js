@@ -11,8 +11,13 @@ export async function getParcelPerformance() {
       
       totalOrders: sql`CAST(SUM(1) AS INTEGER)`.mapWith(Number).as('totalOrders'),
       
-      shipped: sql`CAST(SUM(CASE WHEN ${orders.status} IN ('Shipped', 'Delivered', 'Returned') OR ${orders.courierStatus} IN ('in_transit', 'delivered', 'returned', 'partial_delivered') THEN 1 ELSE 0 END) AS INTEGER)`.mapWith(Number).as('shipped'),
-      
+      shipped: sql`CAST(SUM(CASE WHEN 
+        (${orders.status} = 'Shipped' OR ${orders.courierStatus} IN ('in_review', 'pending', 'shipped', 'in_transit', 'out_for_delivery', 'hold'))
+        AND NOT (${orders.status} = 'Delivered' OR ${orders.courierStatus} IN ('delivered', 'partial_delivered'))
+        AND NOT (${orders.status} = 'Returned' OR ${orders.courierStatus} = 'returned')
+        AND NOT (${orders.status} = 'Cancelled' OR ${orders.courierStatus} = 'cancelled')
+        THEN 1 ELSE 0 END) AS INTEGER)`.mapWith(Number).as('shipped'),
+        
       delivered: sql`CAST(SUM(CASE WHEN ${orders.status} = 'Delivered' OR ${orders.courierStatus} IN ('delivered', 'partial_delivered') THEN 1 ELSE 0 END) AS INTEGER)`.mapWith(Number).as('delivered'),
       
       returned: sql`CAST(SUM(CASE WHEN 
@@ -30,6 +35,7 @@ export async function getParcelPerformance() {
         NOT (${orders.status} = 'Delivered' OR ${orders.courierStatus} IN ('delivered', 'partial_delivered'))
         AND NOT (${orders.status} = 'Returned' OR ${orders.courierStatus} = 'returned')
         AND NOT (${orders.status} = 'Cancelled' OR ${orders.courierStatus} = 'cancelled')
+        AND NOT (${orders.status} = 'Shipped' OR ${orders.courierStatus} IN ('in_review', 'pending', 'shipped', 'in_transit', 'out_for_delivery', 'hold'))
         THEN 1 ELSE 0 END) AS INTEGER)`.mapWith(Number).as('pending'),
     })
     .from(orders)

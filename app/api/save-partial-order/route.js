@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
-import { partialOrders } from '@/lib/db/schema';
-import { eq } from 'drizzle-orm';
+import { partialOrders, steadfastHistory } from '@/lib/db/schema';
+import { eq, inArray } from 'drizzle-orm';
 import { parseAddress } from '@/lib/addressParser';
 
 export const dynamic = 'force-dynamic';
@@ -65,30 +65,70 @@ export async function GET(request) {
   try {
     let allPartialOrders = await db.select().from(partialOrders);
     
+    const phoneNumbers = new Set();
+    allPartialOrders.forEach(o => {
+      if (o.number) {
+        let cleanPhone = o.number.trim().replace(/[-\s]/g, '');
+        const match = cleanPhone.match(/(01[3-9]\d{8})/);
+        if (match) phoneNumbers.add(match[1]);
+      }
+    });
+
+    const phoneArr = Array.from(phoneNumbers);
+    let sfMap = {};
+    if (phoneArr.length > 0) {
+      const chunkSize = 100;
+      for (let i = 0; i < phoneArr.length; i += chunkSize) {
+        const chunk = phoneArr.slice(i, i + chunkSize);
+        const sfData = await db.select().from(steadfastHistory).where(inArray(steadfastHistory.phone, chunk));
+        sfData.forEach(row => {
+          sfMap[row.phone] = row.data;
+        });
+      }
+    }
+
     allPartialOrders.sort((a, b) => new Date(b.date) - new Date(a.date));
     
-    const mappedOrders = allPartialOrders.map(o => ({
-      _id: o.id.toString(),
-      deviceId: o.deviceId,
-      name: o.name,
-      number: o.number,
-      address: o.address,
-      shipping: o.shipping,
-      shippingCost: o.shippingCost,
-      totalValue: o.totalValue,
-      clientInfo: o.clientInfo || {},
-      marketing: o.marketing || {},
-      userAgent: o.clientInfo?.userAgent || "",
-      items: o.items || [],
-      localTime: o.localTime,
-      status: o.status,
-      phoneCallStatus: o.phoneCallStatus,
-      gender: o.gender,
-      district: o.district || "",
-      thana: o.thana || "",
-      createdAt: (o.date && !o.date.includes('Z') && !o.date.includes('+')) ? o.date.replace(' ', 'T') + 'Z' : o.date,
-      date: (o.date && !o.date.includes('Z') && !o.date.includes('+')) ? o.date.replace(' ', 'T') + 'Z' : o.date
-    }));
+    const mappedOrders = allPartialOrders.map(o => {
+      let sfInfo = null;
+      if (o.number) {
+        let cleanPhone = o.number.trim().replace(/[-\s]/g, '');
+        const match = cleanPhone.match(/(01[3-9]\d{8})/);
+        if (match && sfMap[match[1]]) {
+          const j = sfMap[match[1]];
+          const total = j.total_parcels ?? j.parcel_count ?? j.total_reports ?? 0;
+          const delivered = j.total_delivered ?? j.delivered_count ?? 0;
+          const cancelled = j.total_cancelled ?? j.return_count ?? 0;
+          const rate = j.delivery_ratio !== undefined ? j.delivery_ratio : (total > 0 ? Math.round((delivered / total) * 100) : null);
+          const cancelRate = j.cancellation_ratio !== undefined ? j.cancellation_ratio : (total > 0 ? Math.round((cancelled / total) * 100) : null);
+          sfInfo = { rate, total, delivered, cancelled, cancelRate, raw: j };
+        }
+      }
+
+      return {
+        _id: o.id.toString(),
+        deviceId: o.deviceId,
+        name: o.name,
+        number: o.number,
+        address: o.address,
+        shipping: o.shipping,
+        shippingCost: o.shippingCost,
+        totalValue: o.totalValue,
+        clientInfo: o.clientInfo || {},
+        marketing: o.marketing || {},
+        userAgent: o.clientInfo?.userAgent || "",
+        items: o.items || [],
+        localTime: o.localTime,
+        status: o.status,
+        phoneCallStatus: o.phoneCallStatus,
+        gender: o.gender,
+        district: o.district || "",
+        thana: o.thana || "",
+        createdAt: (o.date && !o.date.includes('Z') && !o.date.includes('+')) ? o.date.replace(' ', 'T') + 'Z' : o.date,
+        date: (o.date && !o.date.includes('Z') && !o.date.includes('+')) ? o.date.replace(' ', 'T') + 'Z' : o.date,
+        sfData: sfInfo
+      };
+    });
     
     return NextResponse.json({ success: true, data: mappedOrders });
   } catch (error) {

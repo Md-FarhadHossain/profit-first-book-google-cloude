@@ -2123,13 +2123,12 @@ export default function App() {
           counts[order.status]++;
         }
       } else if (order.status === "Shipped") {
-        // SHIPPED: count only orders that are ACTIVELY in transit with Steadfast.
-        // courierStatus reflects the real-time state from Steadfast API.
-        // Active transit statuses: in_review, pending, shipped, in_transit, out_for_delivery, hold.
-        // This matches what Steadfast's "Delivery processing" counter shows.
+        // SHIPPED: count only orders with a real consignmentId AND an active Steadfast courier status.
+        // This prevents manually-set 'Shipped' orders or orders with no courier tracking from inflating the count.
         const ACTIVE_COURIER_STATUSES = ['in_review', 'pending', 'shipped', 'in_transit', 'out_for_delivery', 'hold'];
         const cs = (order.courierStatus || '').toLowerCase();
-        if (ACTIVE_COURIER_STATUSES.includes(cs) || cs === '') {
+        const hasRealConsignment = !!order.consignmentId;
+        if (hasRealConsignment && ACTIVE_COURIER_STATUSES.includes(cs)) {
           counts["Shipped"]++;
         }
       } else {
@@ -2211,7 +2210,7 @@ export default function App() {
           smsStatus: order.smsStatus || "Pending",
           trackingCode: order.trackingCode || null,
           consignmentId: order.consignmentId || null,
-          courierStatus: order.courierStatus || "pending",
+          courierStatus: order.courierStatus || null,
           courierNote: order.courierNote || null,
           scheduledDate: order.scheduledDate || null,
           historicalOrderCount: order.historicalOrderCount || 1,

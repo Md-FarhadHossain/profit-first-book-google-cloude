@@ -900,7 +900,7 @@ export default function PendingOrdersPage() {
                            </div>
                          </td>
                          <td className="py-4 px-6">
-                           <SteadfastPill phone={order.customer.phone} />
+                           <SteadfastPill phone={order.customer.phone} initialData={order.sfData} />
                          </td>
                          <td className="py-4 px-6">
                            {hasRealOrder ? (
@@ -1039,7 +1039,7 @@ export default function PendingOrdersPage() {
                        <ShieldCheck size={10} className="text-gray-400" />
                        Record
                      </div>
-                     <SteadfastPill phone={order.customer?.phone} />
+                     <SteadfastPill phone={order.customer?.phone} initialData={order.sfData} />
                   </div>
 
                   {/* ── Actions row ── */}

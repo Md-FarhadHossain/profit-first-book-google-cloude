@@ -81,6 +81,7 @@ async function sendCAPIOrderProcessed(order) {
                         ct: order.thana ? hashData(order.thana) : undefined,
                         st: order.district ? hashData(order.district) : undefined,
                         zp: zipCode ? hashData(zipCode) : undefined,
+                        ge: (order.gender === 'm' || order.gender === 'f') ? hashData(order.gender) : undefined,
                         country: hashData('bd'),
                         fbc,
                         fbp,

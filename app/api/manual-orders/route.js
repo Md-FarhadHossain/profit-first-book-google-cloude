@@ -24,13 +24,20 @@ export async function POST(request) {
     const note         = data.note || '';
     const marketing    = JSON.stringify({ utm_source: 'manual' });
 
+    // New fields for Facebook advanced matching
+    const district = data.district || '';
+    const thana    = data.thana    || '';
+    const zip      = data.zip      || '';
+    const gender   = data.gender   || '';
+
     const client = getClient();
 
     const result = await client.execute({
       sql: `INSERT INTO orders (
         order_id, name, number, address, shipping, shipping_cost, total_value,
-        status, phone_call_status, currency, marketing, note, sms_status, courier_status
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        status, phone_call_status, currency, marketing, note, sms_status,
+        courier_status, district, thana, gender
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       RETURNING id, order_id`,
       args: [
         orderId,
@@ -46,17 +53,20 @@ export async function POST(request) {
         marketing,
         note,
         'Pending',
-        'pending'
+        'pending',
+        district || null,
+        thana    || null,
+        gender   || null,
       ]
     });
 
     const row = result.rows[0];
 
-    // CAPI Event for Manual Orders (Advanced Matching)
+    // CAPI Event for Manual Orders (Advanced Matching with location + gender)
     try {
       const pixelId = process.env.NEXT_PUBLIC_FB_PIXEL_ID;
       const accessToken = process.env.FB_ACCESS_TOKEN;
-      
+
       if (pixelId && accessToken) {
         const crypto = require('crypto');
         const hashFn = (val) => val ? crypto.createHash('sha256').update(val.trim().toLowerCase()).digest('hex') : undefined;
@@ -66,6 +76,22 @@ export async function POST(request) {
            phoneRaw = '88' + phoneRaw;
         }
 
+        // Build enriched user_data with all advanced matching signals
+        const user_data = {
+          ph: hashFn(phoneRaw),
+          fn: name ? hashFn(name.split(' ')[0]) : undefined,
+          ln: name && name.includes(' ') ? hashFn(name.split(' ').slice(1).join(' ')) : undefined,
+          country: hashFn('bd'),
+        };
+
+        // Location signals — Facebook field names: st=state/district, ct=city/thana, zp=zip
+        if (district) user_data.st = hashFn(district);
+        if (thana)    user_data.ct = hashFn(thana);
+        if (zip)      user_data.zp = hashFn(zip);
+
+        // Gender signal: 'm' or 'f'
+        if (gender === 'm' || gender === 'f') user_data.ge = hashFn(gender);
+
         const capiPayload = {
           data: [
             {
@@ -73,11 +99,7 @@ export async function POST(request) {
               event_time: Math.floor(Date.now() / 1000),
               action_source: 'system_generated',
               event_id: row.order_id,
-              user_data: {
-                ph: hashFn(phoneRaw),
-                fn: name ? hashFn(name.split(' ')[0]) : undefined,
-                ln: name && name.includes(' ') ? hashFn(name.split(' ').slice(1).join(' ')) : undefined,
-              },
+              user_data,
               custom_data: {
                 currency: 'BDT',
                 value: totalValue || 0,
@@ -88,7 +110,7 @@ export async function POST(request) {
         };
 
         const fbGraphUrl = `https://graph.facebook.com/v18.0/${pixelId}/events?access_token=${accessToken}`;
-        
+
         // Post asynchronously without blocking
         fetch(fbGraphUrl, {
           method: 'POST',

@@ -979,6 +979,23 @@ export default function StockManagementPage() {
                   })
                 )}
               </tbody>
+              {steadfastPayments && steadfastPayments.length > 0 && (
+                <tfoot className="sticky bottom-0 bg-gray-800/95 backdrop-blur-md z-10 border-t border-gray-600 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)]">
+                  <tr>
+                    <td colSpan="3" className="py-4 px-4 text-sm font-bold text-white text-right uppercase tracking-wider">Total</td>
+                    <td className="py-4 px-4 text-sm font-bold text-white text-right">
+                      {steadfastPayments.reduce((sum, p) => sum + (p.amount || 0), 0).toLocaleString()}
+                    </td>
+                    <td className="py-4 px-4 text-sm font-bold text-rose-400 text-right">
+                      -{steadfastPayments.reduce((sum, p) => sum + (p.charges || 0), 0).toLocaleString()}
+                    </td>
+                    <td className="py-4 px-4 text-sm font-bold text-orange-400 text-right">
+                      {steadfastPayments.reduce((sum, p) => sum + (p.total || 0), 0).toLocaleString()}
+                    </td>
+                    <td className="py-4 px-4"></td>
+                  </tr>
+                </tfoot>
+              )}
             </table>
           </div>
         </div>

@@ -73,10 +73,12 @@ const HeroSection = () => {
       const savedDistrict = localStorage.getItem("billing_district");
       const savedThana = localStorage.getItem("billing_thana");
       const savedZip = localStorage.getItem("billing_zip");
+      const savedGender = localStorage.getItem("billing_gender");
       
       if (savedDistrict) ud.st = savedDistrict.toLowerCase();
       if (savedThana) ud.ct = savedThana.toLowerCase();
       if (savedZip) ud.zp = savedZip;
+      if (savedGender) ud.ge = savedGender.toLowerCase();
       
       // Phone: formData first (just typed), then localStorage (returning visitors from past purchases)
       // This means scroll/video events on returning visitors will carry hashed phone → higher EMQ
@@ -217,6 +219,14 @@ const HeroSection = () => {
                 if (np.length > 0) viewContentUserData.fn = np[0].toLowerCase();
                 if (np.length > 1) viewContentUserData.ln = np.slice(1).join(' ').toLowerCase();
               }
+              const savedDistrict = localStorage.getItem("billing_district");
+              if (savedDistrict) viewContentUserData.st = savedDistrict.toLowerCase();
+              const savedThana = localStorage.getItem("billing_thana");
+              if (savedThana) viewContentUserData.ct = savedThana.toLowerCase();
+              const savedZip = localStorage.getItem("billing_zip");
+              if (savedZip) viewContentUserData.zp = savedZip;
+              const savedGender = localStorage.getItem("billing_gender");
+              if (savedGender) viewContentUserData.ge = savedGender.toLowerCase();
             } catch(e) {}
 
             trackViewContent([PRODUCT_ID], PRODUCT_NAME, PRODUCT_PRICE, CURRENCY, viewContentUserData);

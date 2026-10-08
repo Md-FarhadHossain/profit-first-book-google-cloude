@@ -62,10 +62,11 @@ export async function POST(req: Request) {
             ph:         buildUserField(userData.ph),
             fn:         buildUserField(userData.fn),
             ln:         buildUserField(userData.ln),
-            // Geo signals: from client hash OR from IP geolocation (server-resolved)
-            country:    userData.country ?? (geoCity ? hashData('bd') : hashData('bd')),
-            ...(geoCity  ? { ct: hashData(geoCity)  } : userData.ct  ? { ct: userData.ct  } : {}),
-            ...(geoState ? { st: hashData(geoState) } : userData.st  ? { st: userData.st  } : {}),
+            // Geo signals: client-supplied billing data is always more accurate than IP geo.
+            // Use IP geolocation ONLY as a fallback for first-time visitors with no localStorage data.
+            country:    userData.country || hashData('bd'),
+            ...(userData.ct  ? { ct: userData.ct  } : geoCity  ? { ct: hashData(geoCity)  } : {}),
+            ...(userData.st  ? { st: userData.st  } : geoState ? { st: hashData(geoState) } : {}),
             ...(userData.zp ? { zp: buildUserField(userData.zp) } : {}),
             ...(userData.ge ? { ge: buildUserField(userData.ge) } : {}),
             // Not hashed — sent raw per Facebook spec

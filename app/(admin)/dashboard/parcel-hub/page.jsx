@@ -433,6 +433,8 @@ export default function ParcelHubPage() {
 
   // ─── Horizontal Scroll on Mouse Wheel ─────────────────────────────────────────
   useEffect(() => {
+    if (loading) return; // Wait until loading finishes and DOM is rendered
+    
     const pillBar = pillBarRef.current;
     if (!pillBar) return;
 
@@ -446,7 +448,7 @@ export default function ParcelHubPage() {
 
     pillBar.addEventListener("wheel", handleWheel, { passive: false });
     return () => pillBar.removeEventListener("wheel", handleWheel);
-  }, []);
+  }, [loading]);
 
   // ─── Sync courier statuses from Steadfast ────────────────────────────────────
   const handleSync = async () => {

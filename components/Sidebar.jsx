@@ -14,7 +14,8 @@ import {
   HatGlasses,
   TrendingUp,
   PackagePlus,
-  Activity
+  Activity,
+  MapPin
 } from 'lucide-react';
 
 export default function Sidebar({ initialCollapsed = false }) {
@@ -65,6 +66,11 @@ export default function Sidebar({ initialCollapsed = false }) {
       label: 'Parcel Performance',
       path: '/dashboard/parcel-performance',
       icon: Activity
+    },
+    {
+      label: 'Parcel Hub',
+      path: '/dashboard/parcel-hub',
+      icon: MapPin
     },
     { 
       label: 'Stock Management', 

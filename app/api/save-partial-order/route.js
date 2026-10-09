@@ -16,6 +16,53 @@ export async function POST(request) {
     
     const parsedLocation = parseAddress(data.address);
     
+    // ======== AI GENDER DETECTION ========
+    let predictedGender = data.gender || '';
+    
+    // Check existing order to avoid calling API if name hasn't changed
+    let existingName = null;
+    const existing = await db.select({ name: partialOrders.name, gender: partialOrders.gender }).from(partialOrders).where(eq(partialOrders.deviceId, data.deviceId)).limit(1);
+    if (existing.length > 0) {
+      existingName = existing[0].name;
+      if (!predictedGender) {
+        predictedGender = existing[0].gender || '';
+      }
+    }
+    
+    if (data.name && data.name !== existingName && process.env.GROQ_API_KEY) {
+      try {
+        const groqResponse = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+          method: "POST",
+          headers: {
+            "Authorization": `Bearer ${process.env.GROQ_API_KEY}`,
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+            model: "llama-3.3-70b-versatile",
+            messages: [{
+              role: "user",
+              content: `What is the typical gender for the Bangladeshi name '${data.name}'? Reply with ONLY 'm' for male, 'f' for female, or 'unknown'. Do not include any other text.`
+            }],
+            temperature: 0.1,
+            max_tokens: 10
+          })
+        });
+        
+        if (groqResponse.ok) {
+          const groqData = await groqResponse.json();
+          const reply = groqData.choices[0]?.message?.content?.trim().toLowerCase();
+          if (reply === 'm' || reply === 'f') {
+            predictedGender = reply;
+          } else {
+             predictedGender = 'unknown';
+          }
+        }
+      } catch (err) {
+        console.error("Groq API fetch error (Partial Order):", err);
+      }
+    }
+    // =====================================
+    
     await db.insert(partialOrders).values({
       deviceId: data.deviceId,
       name: data.name,
@@ -31,7 +78,7 @@ export async function POST(request) {
       clientInfo: data.clientInfo,
       marketing: data.marketing,
       localTime: data.localTime,
-      gender: data.gender,
+      gender: predictedGender,
       district: parsedLocation.district,
       thana: parsedLocation.thana
     }).onConflictDoUpdate({
@@ -47,7 +94,7 @@ export async function POST(request) {
         clientInfo: data.clientInfo,
         marketing: data.marketing,
         localTime: data.localTime,
-        gender: data.gender,
+        gender: predictedGender,
         district: parsedLocation.district,
         thana: parsedLocation.thana,
         date: new Date().toISOString()

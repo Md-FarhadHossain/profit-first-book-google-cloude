@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { orders, stocks } from '@/lib/db/schema';
 import { eq, sql } from 'drizzle-orm';
+import crypto from 'crypto';
 
 // Helper function to map steadfast status to internal dashboard status.
 const mapSteadfastStatus = (steadfastStatus) => {
@@ -33,28 +34,33 @@ const mapSteadfastStatus = (steadfastStatus) => {
 
 export async function POST(request) {
   try {
-    const authHeader = request.headers.get('authorization') || '';
-    const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : '';
-    const apiKeyHeader = request.headers.get('api-key') || '';
+    // 1. Read raw body and verify X-Signature
+    const rawBody = await request.text();
+    const expectedToken = process.env.STEADFAST_API_KEY || process.env.STEADFAST_TOKEN || '';
     
-    const expectedToken = process.env.STEADFAST_API_KEY;
-
-    // Log the incoming headers for debugging
-    console.log('Steadfast Webhook Headers:', Object.fromEntries(request.headers.entries()));
-
-    // Steadfast doesn't explicitly document their webhook headers. 
-    // We will allow if token matches, OR if api-key header matches, 
-    // OR if we are just debugging (since we validate consignment ID against the DB later).
-    if (expectedToken && token !== expectedToken && apiKeyHeader !== expectedToken) {
-      console.warn('Steadfast Webhook: Token mismatch, but proceeding to check payload for debugging. Received token:', token?.slice(0, 8), 'Received Api-Key:', apiKeyHeader?.slice(0,8));
-      // Temporarily bypass 401 to see what they actually send
-      // return NextResponse.json({ status: 'error', message: 'Unauthorized' }, { status: 401 });
+    if (expectedToken) {
+      const signature = request.headers.get('x-signature') || '';
+      
+      if (signature) {
+        const expectedSignature = crypto.createHmac('sha256', expectedToken).update(rawBody).digest('hex');
+        if (signature.length !== expectedSignature.length || !crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(expectedSignature))) {
+          console.error('Steadfast Webhook: Signature verification failed.');
+          return NextResponse.json({ status: 'error', message: 'Unauthorized' }, { status: 401 });
+        }
+      } else {
+        // Fallback: If no signature but token is in headers (legacy/debug)
+        const authHeader = request.headers.get('authorization') || '';
+        const reqToken = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : '';
+        if (reqToken !== expectedToken) {
+          console.warn('Steadfast Webhook: No signature found, and bearer token mismatch.');
+        }
+      }
     }
 
-    // 2. Parse the incoming webhook payload sent from Steadfast
+    // 2. Parse the verified payload
     let payload;
     try {
-      payload = await request.json();
+      payload = JSON.parse(rawBody);
     } catch (e) {
       console.error('Steadfast Webhook: Failed to parse JSON body');
       return NextResponse.json({ status: 'error', message: 'Invalid JSON body' }, { status: 400 });
@@ -83,13 +89,19 @@ export async function POST(request) {
           }
         }
       }
-      return NextResponse.json({ status: 'success', message: 'Webhook received successfully.' }, { status: 200 });
+      return NextResponse.json({ status: 'success', message: 'Tracking update received.' }, { status: 200 });
+    }
+
+    // Acknowledge other non-status event types safely (cancel_request, return_request, user_update, etc.)
+    if (notification_type && notification_type !== 'delivery_status') {
+      console.log(`Steadfast Webhook: Acknowledging unsupported event type '${notification_type}'`);
+      return NextResponse.json({ status: 'success', message: 'Event acknowledged.' }, { status: 200 });
     }
 
     // For delivery_status, status is required
     const steadfastStatus = status || delivery_status;
     if (!consignment_id || !steadfastStatus) {
-      console.error('Steadfast Webhook: Missing required fields', payload);
+      console.error('Steadfast Webhook: Missing required fields for delivery_status', payload);
       return NextResponse.json({ status: 'error', message: 'Missing consignment_id or status.' }, { status: 400 });
     }
 

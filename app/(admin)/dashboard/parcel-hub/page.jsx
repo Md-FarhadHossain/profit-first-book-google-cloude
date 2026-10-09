@@ -442,7 +442,10 @@ export default function ParcelHubPage() {
       // If scrolling vertically and not holding shift (which naturally does horizontal)
       if (e.deltaY !== 0 && !e.shiftKey) {
         e.preventDefault();
-        pillBar.scrollLeft += e.deltaY;
+        pillBar.scrollBy({
+          left: e.deltaY > 0 ? 250 : -250,
+          behavior: "smooth",
+        });
       }
     };
 

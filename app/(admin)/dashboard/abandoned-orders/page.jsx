@@ -3,24 +3,20 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { 
   Search, ChevronLeft, ChevronRight, ChevronDown, 
   Package, Truck, CheckCircle, CircleDot, MapPin, Clock,
-  XCircle, RotateCcw, Eye, X, User, Phone, Calendar, DollarSign,
+  XCircle, Eye, X, User, Phone, Calendar, DollarSign,
   PhoneCall, PhoneOff, Check, Smartphone, Globe, Zap, 
-  LayoutTemplate, Info, ShieldCheck, AlertCircle, ShoppingBag,
-  AlertTriangle, Share2, ArrowRightCircle, TrendingUp, BarChart2, Target, Users2, Edit
+  ShieldCheck, ShoppingBag,
+  AlertTriangle, Share2, ArrowRightCircle, TrendingUp, BarChart2, Target, Users2, Edit,
+  StickyNote, Save
 } from 'lucide-react';
 import { UAParser } from 'ua-parser-js'; 
 import getAllOrders from '@/lib/getAllorders';
 import { SteadfastPill, FraudCheckerBadge } from '@/components/SteadfastWidgets';
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar as CalendarComponent } from "@/components/ui/calendar";
+import { format } from "date-fns";
 
 // --- CONFIGURATION ---
-const ACTION_OPTIONS = [
-  { label: 'Processing', value: 'Processing' },
-  { label: 'Shipped', value: 'Shipped' },
-  { label: 'Delivered', value: 'Delivered' },
-  { label: 'Cancel', value: 'Cancelled' },
-  { label: 'Return', value: 'Returned' },
-];
-
 const CALL_OPTIONS = [
   { label: 'Pending', value: 'Pending' },
   { label: 'Confirmed', value: 'Confirmed' }, 
@@ -122,17 +118,58 @@ const CallStatusDropdown = ({ currentStatus, onStatusChange }) => {
     );
 };
 
-const ActionDropdown = ({ currentStatus, onStatusChange }) => {
+// --- NOTE MODAL ---
+const NoteModal = ({ onClose, onSave, order, initialNote }) => {
+  const [noteText, setNoteText] = useState(initialNote || "");
+
+  if (!order) return null;
+
   return (
-    <div className="relative group">
-      <select
-        value={currentStatus}
-        onChange={(e) => onStatusChange(e.target.value)}
-        className="appearance-none w-32 rounded-lg bg-gray-900 border border-gray-700 text-xs font-medium text-gray-300 py-2 pl-3 pr-8 focus:outline-none focus:border-blue-500 transition-colors cursor-pointer hover:border-gray-600"
-      >
-        {ACTION_OPTIONS.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
-      </select>
-      <ChevronDown size={12} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none group-hover:text-gray-300" />
+    <div className="fixed inset-0 z-70 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-in fade-in duration-200">
+      <div className="bg-gray-900 border border-gray-700 rounded-xl w-full max-w-md shadow-2xl overflow-hidden">
+        {/* Header */}
+        <div className="bg-gray-800/50 px-6 py-4 border-b border-gray-700 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-yellow-500/10 rounded-lg text-yellow-500">
+              <StickyNote size={20} />
+            </div>
+            <div>
+              <h3 className="text-white font-bold text-lg">Order Note</h3>
+              <p className="text-xs text-gray-400">For {order.customer?.name || order.name || 'Anonymous'}</p>
+            </div>
+          </div>
+          <button onClick={onClose} className="text-gray-400 hover:text-white transition-colors">
+            <X size={20} />
+          </button>
+        </div>
+        {/* Body */}
+        <div className="p-6">
+          <label className="block text-sm text-gray-400 mb-2 font-medium">
+            Special instructions or internal details:
+          </label>
+          <textarea
+            value={noteText}
+            onChange={(e) => setNoteText(e.target.value)}
+            className="w-full h-32 bg-gray-950 border border-gray-700 rounded-lg p-3 text-gray-200 text-sm focus:outline-none focus:border-yellow-500 focus:ring-1 focus:ring-yellow-500 resize-none shadow-inner"
+            placeholder="e.g. Customer requested call after 4 PM, confirm color/address..."
+            autoFocus
+          />
+          <div className="mt-4 flex gap-3">
+            <button
+              onClick={onClose}
+              className="flex-1 py-2.5 bg-gray-800 text-gray-300 rounded-lg hover:bg-gray-700 font-medium transition-colors text-sm"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={() => onSave(order._id, noteText)}
+              className="flex-1 py-2.5 bg-yellow-600 text-white rounded-lg hover:bg-yellow-500 font-bold transition-colors text-sm flex items-center justify-center gap-2 shadow-lg shadow-yellow-600/20"
+            >
+              <Save size={16} /> Save Note
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
   );
 };
@@ -153,9 +190,9 @@ const ConfirmationModal = ({ isOpen, onClose, onConfirm, customerName, isMigrati
                           "Please wait while we migrate this order to the dashboard..."
                         ) : (
                           <>
-                            Are you sure you want to move <strong>{customerName}</strong>'s abandoned cart to the active orders list? 
+                            Are you sure you want to move <strong>{customerName}</strong>&apos;s abandoned cart to the active orders list? 
                             <br/><br/>
-                            <span className="text-xs text-gray-500">This will remove it from 'Abandoned' and create a real order.</span>
+                            <span className="text-xs text-gray-500">This creates an active confirmed order while tracking its abandoned origin.</span>
                           </>
                         )}
                     </p>
@@ -176,7 +213,17 @@ const ConfirmationModal = ({ isOpen, onClose, onConfirm, customerName, isMigrati
 };
 
 // --- MAIN DETAILS MODAL ---
-const OrderModal = ({ order, onClose, onStatusChange, onCallStatusChange, onMigrateRequest, onCustomerInfoChange, onLocationChange }) => {
+const OrderModal = ({ 
+  order, 
+  onClose, 
+  onStatusChange, 
+  onCallStatusChange, 
+  onMigrateRequest, 
+  onCustomerInfoChange, 
+  onLocationChange,
+  onScheduleChange,
+  onOpenNoteModal
+}) => {
   const [isEditingCustomer, setIsEditingCustomer] = useState(false);
   const [customerName, setCustomerName] = useState(order?.customer?.name || order?.name || "");
   const [customerPhone, setCustomerPhone] = useState(order?.customer?.phone || order?.number || "");
@@ -184,13 +231,7 @@ const OrderModal = ({ order, onClose, onStatusChange, onCallStatusChange, onMigr
 
   const [isEditingLocation, setIsEditingLocation] = useState(false);
   const [address, setAddress] = useState(order?.address || "");
-
-  useEffect(() => {
-    setCustomerName(order?.customer?.name || order?.name || "");
-    setCustomerPhone(order?.customer?.phone || order?.number || "");
-    setCustomerGender(order?.gender || "");
-    setAddress(order?.address || "");
-  }, [order]);
+  const [scheduledDate, setScheduledDate] = useState(order?.scheduledDate || "");
 
   if (!order) return null;
   const ua = getDeepUserAgentInfo(order.userAgent);
@@ -235,6 +276,36 @@ const OrderModal = ({ order, onClose, onStatusChange, onCallStatusChange, onMigr
             
             {/* Column 1: Cart & Financials */}
             <div className="lg:col-span-2 space-y-6">
+
+              {/* SPECIAL NOTE HIGHLIGHT / ACTION */}
+              {order.note ? (
+                <div className="bg-yellow-900/15 border-l-4 border-yellow-500 rounded-r-xl p-4 flex justify-between items-start gap-4 shadow-sm">
+                  <div className="flex gap-3">
+                    <div className="bg-yellow-500/20 p-2 rounded-lg shrink-0 h-fit text-yellow-500">
+                      <StickyNote size={18} />
+                    </div>
+                    <div>
+                      <h4 className="text-yellow-500 font-bold text-[11px] uppercase tracking-wider mb-1">Order Note / Special Instructions</h4>
+                      <p className="text-gray-200 text-sm leading-relaxed italic">&quot;{order.note}&quot;</p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => onOpenNoteModal(order)}
+                    className="text-xs text-yellow-400 hover:text-yellow-300 font-medium px-2.5 py-1 bg-yellow-500/10 hover:bg-yellow-500/20 border border-yellow-500/30 rounded-md transition-colors shrink-0 flex items-center gap-1.5"
+                  >
+                    <Edit size={11} /> Edit Note
+                  </button>
+                </div>
+              ) : (
+                <button
+                  onClick={() => onOpenNoteModal(order)}
+                  className="flex items-center gap-2 text-xs text-gray-400 hover:text-yellow-400 px-4 py-3 bg-gray-800/40 hover:bg-gray-800 border border-dashed border-gray-700 hover:border-yellow-500/40 rounded-xl transition-all w-full justify-center group"
+                >
+                  <StickyNote size={15} className="group-hover:scale-110 transition-transform" />
+                  <span>Add Note / Instructions for this Abandoned Order</span>
+                </button>
+              )}
+
               <div className="bg-gray-800/50 rounded-xl border border-gray-700/50 p-4">
                 <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-4 flex items-center gap-2">
                   <Package size={14} /> Cart Details
@@ -360,6 +431,74 @@ const OrderModal = ({ order, onClose, onStatusChange, onCallStatusChange, onMigr
                   )}
                 </div>
               </div>
+
+              {/* SCHEDULE ORDER CARD */}
+              <div className="bg-gray-800/50 rounded-xl border border-gray-700/50 overflow-hidden shadow-lg">
+                <div className="px-4 py-3 border-b border-gray-700/50 bg-gray-900/50 flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Calendar size={14} className="text-purple-400" />
+                    <h3 className="text-xs font-bold text-gray-200 uppercase tracking-wider">Schedule Order</h3>
+                  </div>
+                  {scheduledDate && (
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-300 border border-purple-500/30">
+                      Scheduled
+                    </span>
+                  )}
+                </div>
+                <div className="p-4 flex flex-col gap-3">
+                  <div>
+                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2 flex items-center gap-1.5">
+                      <Clock size={12} className="text-purple-400" /> Set Future Delivery Date
+                    </p>
+                    <div className="flex items-center gap-2">
+                      <div className="flex-1">
+                        <Popover>
+                          <PopoverTrigger asChild>
+                            <button className="w-full flex items-center justify-between bg-black border border-gray-700 rounded-lg px-4 py-2.5 text-xs text-gray-200 hover:text-white hover:border-gray-500 focus:outline-none focus:border-purple-500 transition-all font-medium cursor-pointer">
+                              {scheduledDate ? format(new Date(scheduledDate), "PPP") : <span className="text-gray-500">Pick a delivery date...</span>}
+                              <Calendar size={14} className="text-gray-400" />
+                            </button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-auto p-0 bg-gray-900 border-gray-700 text-white shadow-2xl z-70" align="start">
+                            <CalendarComponent
+                              mode="single"
+                              selected={scheduledDate ? new Date(scheduledDate) : undefined}
+                              onSelect={(date) => {
+                                const dateStr = date ? format(date, "yyyy-MM-dd") : "";
+                                setScheduledDate(dateStr);
+                                onScheduleChange(dateStr);
+                              }}
+                              disabled={(date) => {
+                                const today = new Date();
+                                today.setHours(0, 0, 0, 0);
+                                return date <= today;
+                              }}
+                              initialFocus
+                              className="bg-gray-900 text-white rounded-lg border border-gray-700"
+                            />
+                          </PopoverContent>
+                        </Popover>
+                      </div>
+                      {scheduledDate && (
+                        <button 
+                          onClick={() => {
+                            setScheduledDate("");
+                            onScheduleChange("");
+                          }}
+                          className="p-2.5 bg-red-500/10 hover:bg-red-500/20 text-red-400 rounded-lg border border-red-500/20 transition-colors shrink-0 cursor-pointer"
+                          title="Clear Schedule"
+                        >
+                          <X size={15} />
+                        </button>
+                      )}
+                    </div>
+                    <p className="text-[11px] text-gray-400 mt-1.5">
+                      {scheduledDate ? `Order scheduled to be shipped on ${scheduledDate}.` : "No schedule set. Select a future date to delay delivery."}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
             </div>
 
             {/* Column 2: Digital Fingerprint */}
@@ -388,7 +527,7 @@ const OrderModal = ({ order, onClose, onStatusChange, onCallStatusChange, onMigr
                       <p className="text-sm text-white font-medium flex items-center gap-2">
                         <Globe size={14} className="text-gray-400" /> {ua.appSource.name}
                       </p>
-                      <p className="text-xs text-gray-500 mt-1 pl-6 italic">"{ua.appSource.insight}"</p>
+                      <p className="text-xs text-gray-500 mt-1 pl-6 italic">&quot;{ua.appSource.insight}&quot;</p>
                     </div>
                     <div>
                       <p className="text-[10px] text-gray-500 uppercase mb-1">Operating System</p>
@@ -426,23 +565,47 @@ const OrderModal = ({ order, onClose, onStatusChange, onCallStatusChange, onMigr
 
         {/* Footer - ACTIONS */}
         <div className="px-6 py-4 bg-gray-900 border-t border-gray-800 flex flex-wrap justify-between items-center gap-4">
-          <div className="flex items-center gap-3">
-             <span className="text-xs text-gray-500">Call Outcome:</span>
-             <CallStatusDropdown currentStatus={order.callStatus} onStatusChange={onCallStatusChange} />
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-gray-500 font-medium">Status:</span>
+              <StatusDropdown status={order.status} onStatusChange={onStatusChange} />
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-gray-500 font-medium">Call Outcome:</span>
+              <CallStatusDropdown currentStatus={order.callStatus} onStatusChange={onCallStatusChange} />
+            </div>
           </div>
           <div className="flex items-center gap-3">
-             <div className="hidden sm:block border-r border-gray-700 h-6 mx-2"></div>
-             
-             {/* MIGRATE BUTTON */}
-             <button 
-                onClick={() => onMigrateRequest(order)}
-                className="flex items-center gap-2 px-4 py-2 bg-green-600/20 text-green-400 hover:bg-green-600 hover:text-white border border-green-600/30 rounded-lg text-xs font-bold transition-all"
+             <button
+               onClick={() => onOpenNoteModal(order)}
+               className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-bold transition-all border cursor-pointer ${
+                 order.note
+                   ? "bg-yellow-500 text-black border-yellow-400 hover:bg-yellow-400 shadow-[0_0_8px_rgba(234,179,8,0.3)]"
+                   : "bg-gray-800 text-gray-300 border-gray-700 hover:bg-gray-700 hover:text-white"
+               }`}
              >
-                <ArrowRightCircle size={14} /> 
-                Migrate to Active
+               <StickyNote size={14} fill={order.note ? "currentColor" : "none"} />
+               {order.note ? "Edit Note" : "Add Note"}
              </button>
 
-             <button onClick={onClose} className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold rounded-lg ml-2">
+             <div className="hidden sm:block border-r border-gray-700 h-6 mx-1"></div>
+             
+             {/* MIGRATE BUTTON */}
+             {order.isMigrated || !!order.realOrder ? (
+               <div className="flex items-center gap-1.5 px-3.5 py-2 bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 rounded-lg text-xs font-bold">
+                 <CheckCircle size={14} /> Migrated ({order.migratedOrderId || order.realOrder?.orderId || 'Active'})
+               </div>
+             ) : (
+               <button 
+                  onClick={() => onMigrateRequest(order)}
+                  className="flex items-center gap-2 px-4 py-2 bg-green-600/20 text-green-400 hover:bg-green-600 hover:text-white border border-green-600/30 rounded-lg text-xs font-bold transition-all cursor-pointer"
+               >
+                  <ArrowRightCircle size={14} /> 
+                  Migrate to Active
+               </button>
+             )}
+
+             <button onClick={onClose} className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold rounded-lg ml-1 cursor-pointer">
                Save & Close
              </button>
           </div>
@@ -478,6 +641,13 @@ export default function PendingOrdersPage() {
   const [isMigrating, setIsMigrating] = useState(false);
   const [notification, setNotification] = useState(null);
   
+  // Note Modal state
+  const [isNoteModalOpen, setIsNoteModalOpen] = useState(false);
+  const [noteOrder, setNoteOrder] = useState(null);
+
+  // Filter tab state
+  const [filterTab, setFilterTab] = useState('all'); // 'all' | 'unmigrated' | 'migrated'
+  
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [itemsPerPage, setItemsPerPage] = useState(10);
@@ -495,12 +665,44 @@ export default function PendingOrdersPage() {
     yesterday.setDate(yesterday.getDate() - 1);
     const firstDayOfMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1).getTime();
 
+    const isToday = (dateStr) => {
+      if (!dateStr) return false;
+      const d = new Date(dateStr);
+      return !isNaN(d.getTime()) && d.setHours(0,0,0,0) === today;
+    };
+
+    const isYesterday = (dateStr) => {
+      if (!dateStr) return false;
+      const d = new Date(dateStr);
+      return !isNaN(d.getTime()) && d.setHours(0,0,0,0) === yesterday.getTime();
+    };
+
+    const isThisMonth = (dateStr) => {
+      if (!dateStr) return false;
+      const d = new Date(dateStr);
+      return !isNaN(d.getTime()) && d.getTime() >= firstDayOfMonth;
+    };
+
+    const isMigratedOrder = (o) => Boolean(o.isMigrated || o.realOrder);
+
+    const todayOrders = orders.filter(o => isToday(o.createdAt));
+    const yesterdayOrders = orders.filter(o => isYesterday(o.createdAt));
+    const thisMonthOrders = orders.filter(o => isThisMonth(o.createdAt));
+
     return {
       total: orders.length,
-      today: orders.filter(o => new Date(o.createdAt).setHours(0,0,0,0) === today).length,
-      yesterday: orders.filter(o => new Date(o.createdAt).setHours(0,0,0,0) === yesterday.getTime()).length,
-      thisMonth: orders.filter(o => new Date(o.createdAt).getTime() >= firstDayOfMonth).length,
-      abandoned: orders.filter(o => !o.status || o.status === 'Processing').length
+      totalMigrated: orders.filter(isMigratedOrder).length,
+
+      today: todayOrders.length,
+      todayMigrated: todayOrders.filter(isMigratedOrder).length,
+
+      yesterday: yesterdayOrders.length,
+      yesterdayMigrated: yesterdayOrders.filter(isMigratedOrder).length,
+
+      thisMonth: thisMonthOrders.length,
+      thisMonthMigrated: thisMonthOrders.filter(isMigratedOrder).length,
+
+      abandoned: orders.filter(o => !isMigratedOrder(o) && (!o.status || o.status === 'Processing')).length
     };
   }, [orders]);
 
@@ -523,6 +725,7 @@ export default function PendingOrdersPage() {
         const normalize = (p) => p ? p.replace(/\D/g, '').slice(-11) : '';
         const normPhone = normalize(phone);
         const matchingOrder = normPhone.length > 5 ? allRealOrders.find(ro => normalize(ro.customer?.phone) === normPhone) : null;
+        const isMigrated = Boolean(item.isMigrated || matchingOrder);
         
         return {
           _id: item._id || `temp-${idx}`,
@@ -530,6 +733,11 @@ export default function PendingOrdersPage() {
           createdAt: item.createdAt || new Date().toISOString(),
           status: item.marketing?.status || item.status || 'Processing',
           callStatus: item.phoneCallStatus || 'Pending',
+          note: item.note || '',
+          scheduledDate: item.scheduledDate || null,
+          isMigrated: isMigrated,
+          migratedAt: item.migratedAt || matchingOrder?.date || null,
+          migratedOrderId: item.migratedOrderId || matchingOrder?.orderId || null,
           customer: {
             name: item.name || item.marketing?.name || 'Guest',
             phone: phone
@@ -544,7 +752,8 @@ export default function PendingOrdersPage() {
           shipping: item.shipping,
           shippingCost: item.shippingCost,
           totalValue: item.totalValue,
-          realOrder: matchingOrder || null
+          realOrder: matchingOrder || null,
+          sfData: item.sfData
         };
       });
       setOrders(processed.sort((a,b) => new Date(b.createdAt) - new Date(a.createdAt)));
@@ -601,6 +810,57 @@ export default function PendingOrdersPage() {
       } catch(e) { console.error("Location Update failed", e); }
   };
 
+  // --- NOTE HANDLER ---
+  const openNoteModal = (order) => {
+    setNoteOrder(order);
+    setIsNoteModalOpen(true);
+  };
+
+  const handleSaveNote = async (id, noteText) => {
+    setOrders(prev => prev.map(o => o._id === id ? { ...o, note: noteText } : o));
+    if (selectedOrder && selectedOrder._id === id) {
+      setSelectedOrder(prev => ({ ...prev, note: noteText }));
+    }
+    if (noteOrder && noteOrder._id === id) {
+      setNoteOrder(prev => ({ ...prev, note: noteText }));
+    }
+    setIsNoteModalOpen(false);
+    try {
+      await fetch(`/api/partial-orders/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ note: noteText }),
+      });
+      setNotification({ type: 'success', message: 'Note saved successfully!' });
+      setTimeout(() => setNotification(null), 3000);
+    } catch (e) {
+      console.error('Note update failed', e);
+      setNotification({ type: 'error', message: 'Failed to save note' });
+      setTimeout(() => setNotification(null), 3000);
+    }
+  };
+
+  // --- SCHEDULE HANDLER ---
+  const handleScheduleChange = async (id, dateStr) => {
+    setOrders(prev => prev.map(o => o._id === id ? { ...o, scheduledDate: dateStr || null } : o));
+    if (selectedOrder && selectedOrder._id === id) {
+      setSelectedOrder(prev => ({ ...prev, scheduledDate: dateStr || null }));
+    }
+    try {
+      await fetch(`/api/partial-orders/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ scheduledDate: dateStr || null }),
+      });
+      setNotification({ type: 'success', message: dateStr ? `Order scheduled for ${dateStr}` : 'Schedule cleared' });
+      setTimeout(() => setNotification(null), 3000);
+    } catch (e) {
+      console.error('Schedule update failed', e);
+      setNotification({ type: 'error', message: 'Failed to update schedule' });
+      setTimeout(() => setNotification(null), 3000);
+    }
+  };
+
   // --- MIGRATION LOGIC ---
   
   const handleMigrateClick = (order) => {
@@ -614,26 +874,24 @@ export default function PendingOrdersPage() {
     try {
         setIsMigrating(true);
         // 1. Prepare Payload: Map frontend "Abandoned" structure to backend "Active Order" structure
-        // Based on your backend, it expects: { number, status, ... }
         const payload = {
             ...orderToMigrate,
-            // Explicitly set fields the backend looks for
             number: orderToMigrate.customer.phone,
             name: orderToMigrate.customer.name,
             gender: orderToMigrate.gender,
             address: orderToMigrate.address,
             items: orderToMigrate.items,
             status: "Processing", // Default status for new confirmed orders
-            phoneCallStatus: "Confirmed", // Logic: If we migrate manually, we likely confirmed it
+            phoneCallStatus: "Confirmed", // If migrated manually, marked as confirmed
             shippingCost: orderToMigrate.shippingCost || 60,
             totalValue: orderToMigrate.totalValue || (490 + (orderToMigrate.shippingCost || 60)),
-            
-            // --- NEW: TAG SOURCE AS ABANDONED ---
+            note: orderToMigrate.note || null,
+            scheduledDate: orderToMigrate.scheduledDate || null,
             source: "Abandoned Recovery", 
             isRecoveredOrder: true
         };
 
-        // Remove the old _id so MongoDB generates a fresh one for the new collection
+        // Remove the old _id so database generates a fresh one for the orders table
         delete payload._id; 
 
         // 2. Send to Main Orders Collection
@@ -646,18 +904,26 @@ export default function PendingOrdersPage() {
         const createData = await createRes.json();
 
         if (createData.success) {
-            // 3. If success, DELETE the old abandoned record
-            const deleteRes = await fetch(`/api/partial-orders/${orderToMigrate._id}`, {
-                method: 'DELETE'
+            // 3. Mark the partial order as migrated WITHOUT deleting it, preserving stats!
+            await fetch(`/api/partial-orders/${orderToMigrate._id}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    isMigrated: true,
+                    migratedOrderId: createData.orderId,
+                    migratedAt: new Date().toISOString(),
+                    status: 'Migrated',
+                    callStatus: 'Confirmed'
+                })
             });
             
-            // 4. Cleanup UI
+            // 4. Cleanup UI & Refresh
             setNotification({ type: 'success', message: `Order Migrated Successfully! New Order ID: ${createData.orderId}` });
             setTimeout(() => setNotification(null), 4000);
             setShowConfirmMigrate(false);
             setOrderToMigrate(null);
             setSelectedOrder(null); // Close modal
-            fetchOrders(); // Refresh list to remove the migrated item
+            fetchOrders(); // Refresh list to update status and metrics
         } else {
             setNotification({ type: 'error', message: `Migration Failed: ${createData.message || 'Unknown error'}` });
             setTimeout(() => setNotification(null), 4000);
@@ -679,12 +945,25 @@ export default function PendingOrdersPage() {
 
   const filteredOrders = useMemo(() => {
     const lowerSearch = searchTerm.toLowerCase();
-    return orders.filter(o => 
+    return orders.filter(o => {
+      const matchesSearch = 
         (o.customer.name || '').toLowerCase().includes(lowerSearch) || 
         (o.customer.phone || '').includes(lowerSearch) ||
-        (o.orderId || '').toLowerCase().includes(lowerSearch)
-    );
-  }, [orders, searchTerm]);
+        (o.orderId || '').toLowerCase().includes(lowerSearch) ||
+        (o.note || '').toLowerCase().includes(lowerSearch) ||
+        (o.scheduledDate || '').toLowerCase().includes(lowerSearch);
+
+      if (!matchesSearch) return false;
+
+      if (filterTab === 'unmigrated') {
+        return !o.isMigrated && !o.realOrder;
+      }
+      if (filterTab === 'migrated') {
+        return o.isMigrated || !!o.realOrder;
+      }
+      return true;
+    });
+  }, [orders, searchTerm, filterTab]);
 
   const paginatedData = filteredOrders.slice((currentPage-1)*itemsPerPage, currentPage*itemsPerPage);
   const totalPages = Math.ceil(filteredOrders.length / itemsPerPage);
@@ -696,11 +975,11 @@ export default function PendingOrdersPage() {
 
     // Status breakdown
     const statusCounts = {
-      Processing: orders.filter(o => o.status === 'Processing' || !o.status).length,
+      Processing: orders.filter(o => !o.isMigrated && !o.realOrder && (o.status === 'Processing' || !o.status)).length,
       Cancelled: orders.filter(o => o.status === 'Cancelled').length,
       Fake: orders.filter(o => o.status === 'Fake').length,
       Duplicate: orders.filter(o => o.status === 'Duplicate').length,
-      Migrated: orders.filter(o => !!o.realOrder).length,
+      Migrated: orders.filter(o => o.isMigrated || !!o.realOrder).length,
     };
 
     // Call status breakdown
@@ -754,6 +1033,17 @@ export default function PendingOrdersPage() {
          </div>
        )}
 
+      {/* NOTE MODAL */}
+      {isNoteModalOpen && noteOrder && (
+        <NoteModal
+          key={noteOrder._id}
+          onClose={() => { setIsNoteModalOpen(false); setNoteOrder(null); }}
+          onSave={handleSaveNote}
+          order={noteOrder}
+          initialNote={noteOrder?.note || ""}
+        />
+      )}
+
       {/* MIGRATION CONFIRMATION MODAL */}
       <ConfirmationModal 
         isOpen={showConfirmMigrate}
@@ -765,6 +1055,7 @@ export default function PendingOrdersPage() {
 
       {selectedOrder && (
         <OrderModal 
+          key={selectedOrder._id}
           order={selectedOrder} 
           onClose={() => setSelectedOrder(null)} 
           onStatusChange={(s) => handleStatusUpdate(selectedOrder._id, s)}
@@ -772,6 +1063,8 @@ export default function PendingOrdersPage() {
           onMigrateRequest={handleMigrateClick}
           onCustomerInfoChange={(name, phone, gender) => handleCustomerInfoChange(selectedOrder._id, name, phone, gender)}
           onLocationChange={(address) => handleLocationChange(selectedOrder._id, address)}
+          onScheduleChange={(dateStr) => handleScheduleChange(selectedOrder._id, dateStr)}
+          onOpenNoteModal={openNoteModal}
         />
       )}
 
@@ -787,48 +1080,148 @@ export default function PendingOrdersPage() {
           </div>
         </header>
 
+        {/* STAT CARDS WITH MIGRATED METRIC */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
-           <div className="bg-gray-900 border border-gray-800 p-5 rounded-2xl flex items-center justify-between">
+           {/* TODAY */}
+           <div className="bg-gray-900 border border-gray-800 p-5 rounded-2xl flex items-center justify-between hover:border-gray-700/80 transition-all">
              <div>
                <p className="text-gray-500 text-xs font-bold uppercase tracking-wider mb-1">Today</p>
                <p className="text-3xl font-bold text-white">{stats.today}</p>
              </div>
-             <div className="w-10 h-10 bg-green-500/10 rounded-full flex items-center justify-center text-green-500"><Calendar size={20} /></div>
+             <div className="flex items-center gap-3">
+               <div className="flex flex-col items-end">
+                 <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold border shadow-sm ${
+                   stats.todayMigrated > 0 
+                     ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' 
+                     : 'bg-gray-800/60 text-gray-400 border-gray-700/50'
+                 }`}>
+                   <ArrowRightCircle size={13} className={stats.todayMigrated > 0 ? "text-emerald-400" : "text-gray-500"} />
+                   <span>{stats.todayMigrated} Migrated</span>
+                 </span>
+                 <span className="text-[10px] text-gray-500 mt-1 font-medium">Confirmed orders</span>
+               </div>
+               <div className="w-10 h-10 bg-green-500/10 rounded-full flex items-center justify-center text-green-500 shrink-0">
+                 <Calendar size={20} />
+               </div>
+             </div>
            </div>
-           <div className="bg-gray-900 border border-gray-800 p-5 rounded-2xl flex items-center justify-between">
+
+           {/* YESTERDAY */}
+           <div className="bg-gray-900 border border-gray-800 p-5 rounded-2xl flex items-center justify-between hover:border-gray-700/80 transition-all">
              <div>
                <p className="text-gray-500 text-xs font-bold uppercase tracking-wider mb-1">Yesterday</p>
                <p className="text-3xl font-bold text-white">{stats.yesterday}</p>
              </div>
-             <div className="w-10 h-10 bg-orange-500/10 rounded-full flex items-center justify-center text-orange-500"><Clock size={20} /></div>
+             <div className="flex items-center gap-3">
+               <div className="flex flex-col items-end">
+                 <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold border shadow-sm ${
+                   stats.yesterdayMigrated > 0 
+                     ? 'bg-orange-500/10 text-orange-400 border-orange-500/20' 
+                     : 'bg-gray-800/60 text-gray-400 border-gray-700/50'
+                 }`}>
+                   <ArrowRightCircle size={13} className={stats.yesterdayMigrated > 0 ? "text-orange-400" : "text-gray-500"} />
+                   <span>{stats.yesterdayMigrated} Migrated</span>
+                 </span>
+                 <span className="text-[10px] text-gray-500 mt-1 font-medium">Confirmed orders</span>
+               </div>
+               <div className="w-10 h-10 bg-orange-500/10 rounded-full flex items-center justify-center text-orange-500 shrink-0">
+                 <Clock size={20} />
+               </div>
+             </div>
            </div>
-           <div className="bg-gray-900 border border-gray-800 p-5 rounded-2xl flex items-center justify-between">
+
+           {/* THIS MONTH */}
+           <div className="bg-gray-900 border border-gray-800 p-5 rounded-2xl flex items-center justify-between hover:border-gray-700/80 transition-all">
              <div>
                <p className="text-gray-500 text-xs font-bold uppercase tracking-wider mb-1">This Month</p>
                <p className="text-3xl font-bold text-white">{stats.thisMonth}</p>
              </div>
-             <div className="w-10 h-10 bg-purple-500/10 rounded-full flex items-center justify-center text-purple-500"><Calendar size={20} /></div>
+             <div className="flex items-center gap-3">
+               <div className="flex flex-col items-end">
+                 <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold border shadow-sm ${
+                   stats.thisMonthMigrated > 0 
+                     ? 'bg-purple-500/10 text-purple-400 border-purple-500/20' 
+                     : 'bg-gray-800/60 text-gray-400 border-gray-700/50'
+                 }`}>
+                   <ArrowRightCircle size={13} className={stats.thisMonthMigrated > 0 ? "text-purple-400" : "text-gray-500"} />
+                   <span>{stats.thisMonthMigrated} Migrated</span>
+                 </span>
+                 <span className="text-[10px] text-gray-500 mt-1 font-medium">Confirmed orders</span>
+               </div>
+               <div className="w-10 h-10 bg-purple-500/10 rounded-full flex items-center justify-center text-purple-500 shrink-0">
+                 <Calendar size={20} />
+               </div>
+             </div>
            </div>
-           <div className="bg-gray-900 border border-gray-800 p-5 rounded-2xl flex items-center justify-between">
+
+           {/* TOTAL */}
+           <div className="bg-gray-900 border border-gray-800 p-5 rounded-2xl flex items-center justify-between hover:border-gray-700/80 transition-all">
              <div>
                <p className="text-gray-500 text-xs font-bold uppercase tracking-wider mb-1">Total</p>
                <p className="text-3xl font-bold text-white">{stats.total}</p>
              </div>
-             <div className="w-10 h-10 bg-blue-500/10 rounded-full flex items-center justify-center text-blue-500"><ShoppingBag size={20} /></div>
+             <div className="flex items-center gap-3">
+               <div className="flex flex-col items-end">
+                 <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold border shadow-sm ${
+                   stats.totalMigrated > 0 
+                     ? 'bg-blue-500/10 text-blue-400 border-blue-500/20' 
+                     : 'bg-gray-800/60 text-gray-400 border-gray-700/50'
+                 }`}>
+                   <ArrowRightCircle size={13} className={stats.totalMigrated > 0 ? "text-blue-400" : "text-gray-500"} />
+                   <span>{stats.totalMigrated} Migrated</span>
+                 </span>
+                 <span className="text-[10px] text-gray-500 mt-1 font-medium">Confirmed orders</span>
+               </div>
+               <div className="w-10 h-10 bg-blue-500/10 rounded-full flex items-center justify-center text-blue-500 shrink-0">
+                 <ShoppingBag size={20} />
+               </div>
+             </div>
            </div>
         </div>
 
+        {/* SEARCH & FILTER CONTROLS */}
         <div className="flex flex-col md:flex-row justify-between items-center gap-4 mb-6">
-           <div className="relative w-full md:w-96">
-             <input 
-                type="text" 
-                placeholder="Search name, phone, or ID..." 
-                value={searchTerm}
-                onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
-                className="w-full bg-gray-900 border border-gray-800 text-sm text-white py-2.5 pl-10 pr-4 rounded-xl focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all placeholder-gray-600"
-             />
-             <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-500" />
+           <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
+             <div className="relative w-full md:w-80">
+               <input 
+                  type="text" 
+                  placeholder="Search name, phone, note, ID..." 
+                  value={searchTerm}
+                  onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
+                  className="w-full bg-gray-900 border border-gray-800 text-sm text-white py-2.5 pl-10 pr-4 rounded-xl focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all placeholder-gray-600"
+               />
+               <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-500" />
+             </div>
+
+             {/* Quick Filter Tabs */}
+             <div className="flex items-center gap-1 bg-gray-900/90 p-1 rounded-xl border border-gray-800">
+               <button
+                 onClick={() => { setFilterTab('all'); setCurrentPage(1); }}
+                 className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                   filterTab === 'all' ? 'bg-blue-600 text-white shadow-sm' : 'text-gray-400 hover:text-white'
+                 }`}
+               >
+                 All ({orders.length})
+               </button>
+               <button
+                 onClick={() => { setFilterTab('unmigrated'); setCurrentPage(1); }}
+                 className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                   filterTab === 'unmigrated' ? 'bg-blue-600 text-white shadow-sm' : 'text-gray-400 hover:text-white'
+                 }`}
+               >
+                 Unsubmitted ({orders.filter(o => !o.isMigrated && !o.realOrder).length})
+               </button>
+               <button
+                 onClick={() => { setFilterTab('migrated'); setCurrentPage(1); }}
+                 className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                   filterTab === 'migrated' ? 'bg-emerald-600 text-white shadow-sm' : 'text-gray-400 hover:text-white'
+                 }`}
+               >
+                 Migrated ({stats.totalMigrated})
+               </button>
+             </div>
            </div>
+
            <div className="flex items-center gap-2">
              <span className="text-xs text-gray-500">Rows:</span>
              <select 
@@ -848,7 +1241,7 @@ export default function PendingOrdersPage() {
                <thead>
                  <tr className="bg-[#1A2235] text-gray-400 border-b border-gray-800 text-[10px] font-bold uppercase tracking-widest">
                    <th className="py-4 px-6">Order Info</th>
-                   <th className="py-4 px-6">Time</th>
+                   <th className="py-4 px-6">Time & Schedule</th>
                    <th className="py-4 px-6">Geography</th>
                    <th className="py-4 px-6">Courier History</th>
                    <th className="py-4 px-6">Status</th>
@@ -863,26 +1256,45 @@ export default function PendingOrdersPage() {
                    <tr><td colSpan="7" className="py-16 text-center text-gray-500">No abandoned carts found.</td></tr>
                  ) : (
                    paginatedData.map((order) => {
-                     const hasRealOrder = !!order.realOrder;
+                     const isMigrated = order.isMigrated || !!order.realOrder;
                      const isCancelled = order.status === 'Cancelled';
                      return (
-                       <tr key={order._id} className={`group transition-all duration-200 ${hasRealOrder ? 'bg-[#151c2e] hover:bg-[#1a233a] opacity-80' : isCancelled ? 'bg-red-950/20 shadow-[inset_4px_0_0_0_#ef4444] hover:bg-red-900/10' : 'bg-transparent hover:bg-gray-800/40'}`}>
+                       <tr key={order._id} className={`group transition-all duration-200 ${isMigrated ? 'bg-[#151c2e] hover:bg-[#1a233a] opacity-85' : isCancelled ? 'bg-red-950/20 shadow-[inset_4px_0_0_0_#ef4444] hover:bg-red-900/10' : 'bg-transparent hover:bg-gray-800/40'}`}>
                          <td className="py-4 px-6">
                            <div className="flex items-center gap-4">
-                             <div className="flex flex-col gap-1.5 min-w-[120px]">
+                             <div className="flex flex-col gap-1 min-w-[130px]">
                                <span className="text-[13px] font-bold text-white group-hover:text-blue-400 truncate max-w-[160px]">{order.customer.name}</span>
                                <span className="text-xs text-gray-400 font-mono">{order.customer.phone}</span>
+                               
+                               {/* Note snippet preview */}
+                               {order.note && (
+                                 <div 
+                                   onClick={(e) => { e.stopPropagation(); openNoteModal(order); }}
+                                   className="flex items-center gap-1.5 text-[11px] text-yellow-300/90 bg-yellow-500/10 hover:bg-yellow-500/20 border border-yellow-500/20 px-2 py-0.5 rounded-md max-w-[200px] truncate cursor-pointer transition-colors mt-0.5" 
+                                   title={`Click to edit note: ${order.note}`}
+                                 >
+                                   <StickyNote size={11} className="text-yellow-400 shrink-0" fill="currentColor" />
+                                   <span className="truncate italic">{order.note}</span>
+                                 </div>
+                               )}
                              </div>
-                             {hasRealOrder && (
-                               <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-green-500/10 border border-green-500/20 text-green-400 text-[10px] font-bold uppercase tracking-wider">
-                                 <CheckCircle size={12} /> Already Ordered ({order.realOrder.status})
+                             {isMigrated && (
+                               <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[10px] font-bold uppercase tracking-wider">
+                                 <CheckCircle size={12} /> Migrated ({order.migratedOrderId || order.realOrder?.orderId || 'Active'})
                                </div>
                              )}
                            </div>
                          </td>
                          <td className="py-4 px-6">
-                           <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded bg-gray-800/50 text-gray-400 text-[11px] font-medium border border-gray-700/50">
-                             <Clock size={12} /> {formatTimeAgo(order.createdAt)}
+                           <div className="flex flex-col gap-1.5">
+                             <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded bg-gray-800/50 text-gray-400 text-[11px] font-medium border border-gray-700/50 w-fit">
+                               <Clock size={12} /> {formatTimeAgo(order.createdAt)}
+                             </div>
+                             {order.scheduledDate && (
+                               <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded bg-purple-500/10 text-purple-300 border border-purple-500/25 text-[10px] font-bold w-fit">
+                                 <Calendar size={11} className="text-purple-400" /> Scheduled: {order.scheduledDate}
+                               </div>
+                             )}
                            </div>
                          </td>
                          <td className="py-4 px-6">
@@ -895,7 +1307,7 @@ export default function PendingOrdersPage() {
                                <div className="flex items-center gap-1.5 text-xs text-gray-400 max-w-[200px] truncate" title={order.address}>
                                  <MapPin size={12} className="shrink-0 text-gray-500" />
                                  <span className="truncate">{order.address}</span>
-                               </div>
+                                </div>
                              )}
                            </div>
                          </td>
@@ -903,23 +1315,50 @@ export default function PendingOrdersPage() {
                            <SteadfastPill phone={order.customer.phone} initialData={order.sfData} />
                          </td>
                          <td className="py-4 px-6">
-                           {hasRealOrder ? (
-                             <span className="text-xs text-gray-500 font-medium italic">Handled</span>
+                           {isMigrated ? (
+                             <span className="text-xs text-emerald-400 font-medium flex items-center gap-1">
+                               <CheckCircle size={12} /> Migrated
+                             </span>
                            ) : (
                              <StatusDropdown status={order.status} onStatusChange={(s) => handleStatusUpdate(order._id, s)} />
                            )}
                          </td>
                          <td className="py-4 px-6">
-                           {hasRealOrder ? (
-                             <span className="text-xs text-gray-500 font-medium italic">N/A</span>
+                           {isMigrated ? (
+                             <span className="text-xs text-gray-400 font-medium italic">Confirmed</span>
                            ) : (
                              <CallStatusDropdown currentStatus={order.callStatus} onStatusChange={(s) => handleCallStatusUpdate(order._id, s)} />
                            )}
                          </td>
                          <td className="py-4 px-6 text-right">
-                           <button onClick={() => setSelectedOrder(order)} className="inline-flex items-center gap-2 px-3 py-1.5 bg-[#1F2937] hover:bg-[#374151] border border-gray-700 rounded-md text-[11px] font-bold text-white transition-all shadow-sm">
-                             <Eye size={14} /> View
-                           </button>
+                           <div className="flex items-center justify-end gap-2">
+                             {/* NOTE BUTTON WITH STATE COLOR */}
+                             <button
+                               onClick={(e) => { e.stopPropagation(); openNoteModal(order); }}
+                               className={`p-1.5 rounded-lg transition-all border cursor-pointer ${
+                                 order.note
+                                   ? "bg-yellow-500 text-black border-yellow-400 hover:bg-yellow-400 shadow-[0_0_10px_rgba(234,179,8,0.4)]"
+                                   : "bg-[#1F2937] text-gray-400 border-gray-700 hover:bg-gray-700 hover:text-white"
+                               }`}
+                               title={order.note ? `Edit Note: "${order.note}"` : "Add Note"}
+                             >
+                               <StickyNote size={14} fill={order.note ? "currentColor" : "none"} />
+                             </button>
+
+                             {/* VIEW DETAILS BUTTON */}
+                             <button 
+                               onClick={() => setSelectedOrder(order)} 
+                               className="relative inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#1F2937] hover:bg-[#374151] border border-gray-700 rounded-md text-[11px] font-bold text-white transition-all shadow-sm cursor-pointer"
+                             >
+                               <Eye size={14} /> View
+                               {order.note && (
+                                 <span className="absolute -top-1 -right-1 flex h-2.5 w-2.5">
+                                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-yellow-400 opacity-75"></span>
+                                   <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-yellow-500"></span>
+                                 </span>
+                               )}
+                             </button>
+                           </div>
                          </td>
                        </tr>
                      );
@@ -932,8 +1371,8 @@ export default function PendingOrdersPage() {
              <div className="px-6 py-4 border-t border-gray-800 bg-[#151c2e] flex items-center justify-between">
                <span className="text-xs text-gray-400 font-medium">Page <span className="text-white">{currentPage}</span> of <span className="text-white">{totalPages}</span></span>
                <div className="flex gap-2">
-                 <button disabled={currentPage === 1} onClick={() => setCurrentPage(p => Math.max(1, p - 1))} className="p-2 rounded-lg bg-gray-800/80 border border-gray-700 text-gray-400 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-gray-700 hover:text-white transition-colors"><ChevronLeft size={16} /></button>
-                 <button disabled={currentPage === totalPages} onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} className="p-2 rounded-lg bg-gray-800/80 border border-gray-700 text-gray-400 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-gray-700 hover:text-white transition-colors"><ChevronRight size={16} /></button>
+                 <button disabled={currentPage === 1} onClick={() => setCurrentPage(p => Math.max(1, p - 1))} className="p-2 rounded-lg bg-gray-800/80 border border-gray-700 text-gray-400 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-gray-700 hover:text-white transition-colors cursor-pointer"><ChevronLeft size={16} /></button>
+                 <button disabled={currentPage === totalPages} onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} className="p-2 rounded-lg bg-gray-800/80 border border-gray-700 text-gray-400 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-gray-700 hover:text-white transition-colors cursor-pointer"><ChevronRight size={16} /></button>
                </div>
              </div>
            )}
@@ -953,14 +1392,14 @@ export default function PendingOrdersPage() {
             </div>
           ) : (
             paginatedData.map((order) => {
-              const hasRealOrder = !!order.realOrder;
+              const isMigrated = order.isMigrated || !!order.realOrder;
               return (
                 <div
                   key={order._id}
                   onClick={() => setSelectedOrder(order)}
                   className={`flex flex-col gap-0 active:scale-[0.99] transition-transform relative overflow-hidden rounded-2xl cursor-pointer ${
-                    hasRealOrder
-                      ? "bg-indigo-900/40 border border-indigo-500/80 shadow-[0_4px_20px_rgba(99,102,241,0.25)] ring-1 ring-indigo-500/50 z-10"
+                    isMigrated
+                      ? "bg-indigo-900/30 border border-indigo-500/60 shadow-[0_4px_20px_rgba(99,102,241,0.2)] ring-1 ring-indigo-500/40 z-10"
                       : order.status === "Cancelled"
                         ? "bg-red-950/20 border border-red-500/20 shadow-[0_2px_12px_rgba(239,68,68,0.05)]"
                         : "bg-gray-800/90 border border-gray-700/50 shadow-md"
@@ -970,7 +1409,7 @@ export default function PendingOrdersPage() {
                   <div className="px-4 pt-4 pb-3 flex items-start gap-3">
                     {/* Left: Avatar circle */}
                     <div className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold shrink-0 ${
-                      hasRealOrder ? 'bg-indigo-500/20 text-indigo-300 border border-indigo-500/30'
+                      isMigrated ? 'bg-indigo-500/20 text-indigo-300 border border-indigo-500/30'
                       : 'bg-gray-700 text-gray-300 border border-gray-600'
                     }`}>
                       {(order.customer?.name && order.customer.name !== 'Guest' ? order.customer.name : '?').charAt(0).toUpperCase()}
@@ -983,9 +1422,9 @@ export default function PendingOrdersPage() {
                           {(order.customer?.name && order.customer.name !== 'Guest') ? order.customer.name : <span className="text-gray-500 font-medium italic text-sm">Unknown Guest</span>}
                         </span>
                         {/* Status pill inline with name */}
-                        {hasRealOrder && (
-                          <span className="inline-flex items-center gap-1 text-[9px] font-bold px-1.5 py-0.5 rounded-full shrink-0 text-indigo-300 bg-indigo-500/20 border border-indigo-500/30">
-                            <CheckCircle size={8} /> Ordered
+                        {isMigrated && (
+                          <span className="inline-flex items-center gap-1 text-[9px] font-bold px-1.5 py-0.5 rounded-full shrink-0 text-emerald-300 bg-emerald-500/20 border border-emerald-500/30">
+                            <CheckCircle size={8} /> Migrated
                           </span>
                         )}
                       </div>
@@ -1005,17 +1444,57 @@ export default function PendingOrdersPage() {
                         <Clock size={9} />
                         <span>{formatTimeAgo(order.createdAt)}</span>
                       </div>
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-1.5">
+                        {/* Note Button Mobile */}
+                        <button
+                          onClick={(e) => { e.stopPropagation(); openNoteModal(order); }}
+                          className={`p-1.5 rounded-lg transition-all border ${
+                            order.note
+                              ? 'bg-yellow-500 text-black border-yellow-400 shadow-[0_0_8px_rgba(234,179,8,0.4)]'
+                              : 'bg-gray-700/80 border-gray-600/60 text-gray-500 hover:text-white hover:bg-gray-600'
+                          }`}
+                          title={order.note ? 'Edit Note' : 'Add Note'}
+                        >
+                          <StickyNote size={13} fill={order.note ? 'currentColor' : 'none'} />
+                        </button>
+                        
+                        {/* View Button Mobile */}
                         <button
                           onClick={(e) => { e.stopPropagation(); setSelectedOrder(order); }}
-                          className="p-1.5 rounded-lg transition-all border bg-gray-700/80 border-gray-600/60 text-gray-400 hover:text-white hover:bg-blue-600 hover:border-blue-500 hover:shadow-[0_0_8px_rgba(37,99,235,0.4)]"
+                          className="relative p-1.5 rounded-lg transition-all border bg-gray-700/80 border-gray-600/60 text-gray-400 hover:text-white hover:bg-blue-600 hover:border-blue-500 hover:shadow-[0_0_8px_rgba(37,99,235,0.4)]"
                           title="View Details"
                         >
                           <Eye size={13} />
+                          {order.note && (
+                            <span className="absolute -top-1 -right-1 flex h-2 w-2">
+                              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-yellow-400 opacity-75"></span>
+                              <span className="relative inline-flex rounded-full h-2 w-2 bg-yellow-500"></span>
+                            </span>
+                          )}
                         </button>
                       </div>
                     </div>
                   </div>
+
+                  {/* ── Scheduled Date Banner (if scheduled) ── */}
+                  {order.scheduledDate && (
+                    <div className="mx-4 mb-2 flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-purple-500/10 border border-purple-500/20 text-purple-300 text-[10px] font-bold">
+                      <Calendar size={11} className="text-purple-400 shrink-0" />
+                      <span>Scheduled for: {order.scheduledDate}</span>
+                    </div>
+                  )}
+
+                  {/* ── Note preview (if exists) ── */}
+                  {order.note && (
+                    <div 
+                      onClick={(e) => { e.stopPropagation(); openNoteModal(order); }}
+                      className="mx-4 mb-2 flex items-start gap-2 p-2 bg-yellow-500/10 border border-yellow-500/20 rounded-xl relative overflow-hidden cursor-pointer"
+                    >
+                      <div className="absolute top-0 left-0 w-[3px] h-full bg-yellow-500 rounded-l-xl" />
+                      <StickyNote size={11} className="text-yellow-500 mt-0.5 shrink-0" fill="currentColor" />
+                      <span className="text-xs text-yellow-100/90 italic leading-snug truncate">{order.note}</span>
+                    </div>
+                  )}
 
                   {/* ── Address + Location row ── */}
                   <div className="px-4 pb-3 flex items-center justify-between gap-2 w-full min-w-0">
@@ -1048,8 +1527,10 @@ export default function PendingOrdersPage() {
                     onClick={(e) => e.stopPropagation()}
                   >
                     {/* Status badge */}
-                    {hasRealOrder ? (
-                       <span className="text-[10px] text-gray-500 font-medium italic">Handled ({order.realOrder?.status})</span>
+                    {isMigrated ? (
+                       <span className="text-[10px] text-emerald-400 font-semibold flex items-center gap-1">
+                         <CheckCircle size={10} /> Migrated ({order.migratedOrderId || order.realOrder?.orderId || 'Active'})
+                       </span>
                     ) : (
                        <div className="relative">
                          <select
@@ -1073,8 +1554,8 @@ export default function PendingOrdersPage() {
 
                     {/* Call status – takes remaining space */}
                     <div className="ml-auto">
-                      {hasRealOrder ? (
-                         <span className="text-[10px] text-gray-500 font-medium italic">N/A</span>
+                      {isMigrated ? (
+                         <span className="text-[10px] text-gray-500 font-medium italic">Confirmed</span>
                       ) : (
                         <div className="relative">
                            <select
@@ -1103,10 +1584,10 @@ export default function PendingOrdersPage() {
             <div className="flex items-center justify-between py-3 px-1">
               <span className="text-xs text-gray-400">Page <span className="text-white font-bold">{currentPage}</span> of <span className="text-white font-bold">{totalPages}</span></span>
               <div className="flex gap-2">
-                <button disabled={currentPage === 1} onClick={() => setCurrentPage(p => Math.max(1, p - 1))} className="px-4 py-2 rounded-xl bg-gray-800 border border-gray-700 text-gray-400 disabled:opacity-40 text-sm font-medium hover:bg-gray-700 hover:text-white transition-colors flex items-center gap-1">
+                <button disabled={currentPage === 1} onClick={() => setCurrentPage(p => Math.max(1, p - 1))} className="px-4 py-2 rounded-xl bg-gray-800 border border-gray-700 text-gray-400 disabled:opacity-40 text-sm font-medium hover:bg-gray-700 hover:text-white transition-colors flex items-center gap-1 cursor-pointer">
                   <ChevronLeft size={15} /> Prev
                 </button>
-                <button disabled={currentPage === totalPages} onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} className="px-4 py-2 rounded-xl bg-gray-800 border border-gray-700 text-gray-400 disabled:opacity-40 text-sm font-medium hover:bg-gray-700 hover:text-white transition-colors flex items-center gap-1">
+                <button disabled={currentPage === totalPages} onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} className="px-4 py-2 rounded-xl bg-gray-800 border border-gray-700 text-gray-400 disabled:opacity-40 text-sm font-medium hover:bg-gray-700 hover:text-white transition-colors flex items-center gap-1 cursor-pointer">
                   Next <ChevronRight size={15} />
                 </button>
               </div>

@@ -28,6 +28,11 @@ export async function PATCH(request, props) {
     if (body.phone !== undefined) updateData.number = body.phone;
     if (body.address !== undefined) updateData.address = body.address;
     if (body.gender !== undefined) updateData.gender = body.gender;
+    if (body.note !== undefined) updateData.note = body.note;
+    if (body.scheduledDate !== undefined) updateData.scheduledDate = body.scheduledDate;
+    if (body.isMigrated !== undefined) updateData.isMigrated = Boolean(body.isMigrated);
+    if (body.migratedAt !== undefined) updateData.migratedAt = body.migratedAt;
+    if (body.migratedOrderId !== undefined) updateData.migratedOrderId = body.migratedOrderId;
 
     if (Object.keys(updateData).length === 0) {
       return NextResponse.json({ success: false, message: 'No fields to update' }, { status: 400 });

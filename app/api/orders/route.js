@@ -93,7 +93,9 @@ export async function POST(request) {
       marketing: data.marketing,
       gender: predictedGender,
       district: parsedLocation.district,
-      thana: parsedLocation.thana
+      thana: parsedLocation.thana,
+      note: data.note || null,
+      scheduledDate: data.scheduledDate || null
     }).returning({ id: orders.id, orderId: orders.orderId, gender: orders.gender });
     
     try {
@@ -104,23 +106,27 @@ export async function POST(request) {
       console.error("SMS Failed:", smsError);
     }
 
-    // Cleanup the abandoned cart (partial_orders) directly linking to this submission
+    // Mark partial order (abandoned cart) as migrated rather than deleting, preserving analytics
     try {
       const deviceId = data.deviceId || data.clientInfo?.deviceId;
-      if (deviceId && data.number) {
-        await db.delete(partialOrders).where(
-          or(
-            eq(partialOrders.deviceId, deviceId),
-            eq(partialOrders.number, data.number)
-          )
-        );
-      } else if (data.number) {
-        await db.delete(partialOrders).where(eq(partialOrders.number, data.number));
-      } else if (deviceId) {
-        await db.delete(partialOrders).where(eq(partialOrders.deviceId, deviceId));
+      const targetCondition = (deviceId && data.number)
+        ? or(eq(partialOrders.deviceId, deviceId), eq(partialOrders.number, data.number))
+        : data.number
+          ? eq(partialOrders.number, data.number)
+          : deviceId
+            ? eq(partialOrders.deviceId, deviceId)
+            : null;
+
+      if (targetCondition) {
+        await db.update(partialOrders).set({
+          isMigrated: true,
+          migratedOrderId: inserted[0]?.orderId || null,
+          migratedAt: new Date().toISOString(),
+          status: 'Migrated'
+        }).where(targetCondition);
       }
     } catch (cleanupError) {
-      console.error("Failed to cleanup partial order:", cleanupError);
+      console.error("Failed to mark partial order as migrated:", cleanupError);
     }
     // CAPI Recovery Event
     if (data.isRecoveredOrder && inserted[0]?.orderId) {
@@ -260,7 +266,13 @@ export async function GET(request) {
       returnedAt: o.returnedAt || null,
       courierNote: o.courierNote || null,
       scheduledDate: o.scheduledDate || null,
-      historicalOrderCount: orderOccurrences[o.id] || 1
+      historicalOrderCount: orderOccurrences[o.id] || 1,
+      orderQuantity: (() => {
+        try {
+          const items = typeof o.items === 'string' ? JSON.parse(o.items) : o.items;
+          return (items && items[0] && items[0].quantity) ? Number(items[0].quantity) : 1;
+        } catch { return 1; }
+      })()
     }));
     
     return NextResponse.json(mappedOrders);

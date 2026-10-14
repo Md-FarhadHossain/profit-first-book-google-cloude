@@ -24,6 +24,14 @@ export default async function getUnSubmitOrders() {
         userAgent: info.userAgent || "",
         items: o.items,
         localTime: o.localTime,
+        status: o.status,
+        phoneCallStatus: o.phoneCallStatus,
+        gender: o.gender,
+        note: o.note || "",
+        scheduledDate: o.scheduledDate || null,
+        isMigrated: Boolean(o.isMigrated),
+        migratedAt: o.migratedAt || null,
+        migratedOrderId: o.migratedOrderId || null,
         date: o.date
       };
       })

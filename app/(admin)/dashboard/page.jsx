@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, useMemo, useEffect, useRef } from "react";
+import React, { useState, useMemo, useEffect, useRef, useCallback } from "react";
  
 
 import {
@@ -2039,6 +2039,7 @@ export default function App() {
   const [courierOrder, setCourierOrder] = useState(null);
   const [isSendingCourier, setIsSendingCourier] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   
   // Pause background polling during active modifications
   const activeRequestsRef = useRef(0);
@@ -2175,94 +2176,78 @@ export default function App() {
     const timer = setInterval(() => setCurrentTime(new Date()), 60000);
     return () => clearInterval(timer);
   }, []);
-  useEffect(() => {
-    const fetchOrders = async (isBackground = false) => {
-      // Prevent background polling from overwriting optimistic UI updates
-      if (isBackground && activeRequestsRef.current > 0) return;
+  const fetchOrders = useCallback(async (isManual = false) => {
+    if (isManual) setIsRefreshing(true);
+    try {
+      const res = await fetch("/api/orders");
+      const data = await res.json();
+      const transformedData = data.map((order, index) => ({
+        ...order,
+        id: order._id || order.id || index,
+        customer: order.customer || { name: order.name || "N/A", phone: order.number || "N/A" },
+        address: order.address || "N/A",
+        shippingMethod: (() => {
+          let sm = order.shippingMethod || order.shipping || "";
+          if (sm === "ঢাকার বাইরে" || sm === "Outside Dhaka") return "Outside Dhaka";
+          if (sm === "ঢাকার ভিতরে" || sm === "Inside Dhaka") return "Inside Dhaka";
+          if (order.shippingCost === 99 || order.shippingCost > 60) return "Outside Dhaka";
+          if (order.shippingCost === 60) return "Inside Dhaka";
+          if (order.district && order.district !== "Dhaka City") return "Outside Dhaka";
+          return "Inside Dhaka";
+        })(),
+        shippingCost: order.shippingCost || 0,
+        totalValue: order.totalValue || 0,
+        status: order.status || "Processing",
+        callStatus: order.callStatus || order.phoneCallStatus || "Pending",
+        orderId: order.orderId,
+        clientInfo: order.clientInfo || {},
+        ip: order.ip || order.clientInfo?.ip || "N/A",
+        userAgent: order.clientInfo?.userAgent || order.userAgent || "",
+        date: order.date || order.createdAt || new Date().toISOString(),
+        note: order.note || "",
+        smsStatus: order.smsStatus || "Pending",
+        trackingCode: order.trackingCode || null,
+        consignmentId: order.consignmentId || null,
+        courierStatus: order.courierStatus || null,
+        courierNote: order.courierNote || null,
+        scheduledDate: order.scheduledDate || null,
+        historicalOrderCount: order.historicalOrderCount || 1,
+        orderQuantity: order.orderQuantity || 1,
+      }));
+      
+      setOrders(transformedData);
 
-      try {
-        const res = await fetch("/api/orders");
-        const data = await res.json();
-        const transformedData = data.map((order, index) => ({
-          ...order,
-          id: order._id || order.id || index,
-          customer: order.customer || { name: order.name || "N/A", phone: order.number || "N/A" },
-          address: order.address || "N/A",
-          shippingMethod: (() => {
-            let sm = order.shippingMethod || order.shipping || "";
-            if (sm === "ঢাকার বাইরে" || sm === "Outside Dhaka") return "Outside Dhaka";
-            if (sm === "ঢাকার ভিতরে" || sm === "Inside Dhaka") return "Inside Dhaka";
-            if (order.shippingCost === 99 || order.shippingCost > 60) return "Outside Dhaka";
-            if (order.shippingCost === 60) return "Inside Dhaka";
-            if (order.district && order.district !== "Dhaka City") return "Outside Dhaka";
-            return "Inside Dhaka";
-          })(),
-          shippingCost: order.shippingCost || 0,
-          totalValue: order.totalValue || 0,
-          status: order.status || "Processing",
-          callStatus: order.callStatus || order.phoneCallStatus || "Pending",
-          orderId: order.orderId,
-          clientInfo: order.clientInfo || {},
-          ip: order.ip || order.clientInfo?.ip || "N/A",
-          userAgent: order.clientInfo?.userAgent || order.userAgent || "",
-          date: order.date || order.createdAt || new Date().toISOString(),
-          note: order.note || "",
-          smsStatus: order.smsStatus || "Pending",
-          trackingCode: order.trackingCode || null,
-          consignmentId: order.consignmentId || null,
-          courierStatus: order.courierStatus || null,
-          courierNote: order.courierNote || null,
-          scheduledDate: order.scheduledDate || null,
-          historicalOrderCount: order.historicalOrderCount || 1,
-        }));
-        
-        // Use functional state update to only replace if data changed (prevent unnecessary re-renders)
-        setOrders(prevOrders => {
-           // Simple check: if lengths are different, or if the first item's status changed, it's likely changed. 
-           // In a real app we'd deep compare or rely on Last-Modified, but this avoids some re-renders
-           if (!isBackground) return transformedData;
-           if (prevOrders.length !== transformedData.length) return transformedData;
-           // If lengths match, do a quick stringify check (could be heavy for very large arrays, but okay for typical dashboards)
-           const prevStr = JSON.stringify(prevOrders.map(o => ({id: o.id, status: o.status, callStatus: o.callStatus, totalValue: o.totalValue, address: o.address})));
-           const currStr = JSON.stringify(transformedData.map(o => ({id: o.id, status: o.status, callStatus: o.callStatus, totalValue: o.totalValue, address: o.address})));
-           return prevStr !== currStr ? transformedData : prevOrders;
-        });
-
-        const now = new Date();
-        const today = new Date(
-          now.getFullYear(),
-          now.getMonth(),
-          now.getDate()
-        );
-        const yesterday = new Date(today);
-        yesterday.setDate(yesterday.getDate() - 1);
-        const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-        setStats({
-          today: transformedData.filter((o) => new Date(o.date) >= today)
-            .length,
-          yesterday: transformedData.filter((o) => {
-            const d = new Date(o.date);
-            return d >= yesterday && d < today;
-          }).length,
-          thisMonth: transformedData.filter(
-            (o) => new Date(o.date) >= startOfMonth
-          ).length,
-        });
-      } catch (error) {
-        console.error("Failed to fetch orders", error);
-      }
-    };
-    
-    // Initial fetch
-    fetchOrders(false);
-
-    // Set up polling interval every 10 seconds
-    const intervalId = setInterval(() => {
-      fetchOrders(true);
-    }, 10000);
-
-    return () => clearInterval(intervalId);
+      const now = new Date();
+      const today = new Date(
+        now.getFullYear(),
+        now.getMonth(),
+        now.getDate()
+      );
+      const yesterday = new Date(today);
+      yesterday.setDate(yesterday.getDate() - 1);
+      const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+      setStats({
+        today: transformedData.filter((o) => new Date(o.date) >= today)
+          .length,
+        yesterday: transformedData.filter((o) => {
+          const d = new Date(o.date);
+          return d >= yesterday && d < today;
+        }).length,
+        thisMonth: transformedData.filter(
+          (o) => new Date(o.date) >= startOfMonth
+        ).length,
+      });
+    } catch (error) {
+      console.error("Failed to fetch orders", error);
+    } finally {
+      if (isManual) setIsRefreshing(false);
+    }
   }, []);
+
+  useEffect(() => {
+    // Initial fetch once when dashboard opens (10s auto-polling stopped to prevent excessive DB reads)
+    fetchOrders(false);
+  }, [fetchOrders]);
   // --- HANDLERS ---
   const handleStatusChange = async (id, newStatus) => {
     if (newStatus === "Abandoned") {
@@ -3024,9 +3009,20 @@ export default function App() {
             Manage your orders and shipments efficiently.
           </p>
         </div>
-        <div className="flex items-center gap-2 text-sm text-gray-400 bg-gray-800 px-3 py-1.5 rounded-full border border-gray-700">
-          <Clock size={14} />
-          {currentTime.toLocaleString()}
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => fetchOrders(true)}
+            disabled={isRefreshing}
+            className="flex items-center gap-2 text-sm font-medium text-gray-300 hover:text-white bg-gray-800 hover:bg-gray-700 active:scale-95 px-3.5 py-1.5 rounded-full border border-gray-700 transition-all shadow-sm disabled:opacity-50 cursor-pointer"
+            title="Refresh Orders"
+          >
+            <RefreshCw size={14} className={isRefreshing ? "animate-spin text-blue-400" : "text-gray-400"} />
+            <span>{isRefreshing ? "Refreshing..." : "Refresh"}</span>
+          </button>
+          <div className="flex items-center gap-2 text-sm text-gray-400 bg-gray-800 px-3 py-1.5 rounded-full border border-gray-700">
+            <Clock size={14} />
+            {currentTime.toLocaleString()}
+          </div>
         </div>
       </header>
       {/* STATISTICS SECTION */}
@@ -3345,16 +3341,28 @@ export default function App() {
                               ? "bg-indigo-900/40 shadow-[inset_4px_0_0_0_#818cf8] hover:bg-indigo-900/60"
                               : isCancelled
                                 ? "bg-red-950/20 shadow-[inset_4px_0_0_0_#ef4444] hover:bg-red-900/10"
-                                : isReadyToShip
-                                  ? "bg-emerald-950/30 shadow-[inset_4px_0_0_0_#10b981] hover:bg-emerald-900/20"
-                                  : needsWork
-                                    ? "shadow-[inset_4px_0_0_0_#f59e0b] hover:bg-gray-700/40 " + (index % 2 === 0 ? "bg-gray-700/25" : "")
-                                    : `hover:bg-gray-700/40 ${index % 2 === 0 ? "bg-gray-700/25" : ""}`
+                                : order.orderQuantity > 1
+                                  ? "bg-violet-950/30 shadow-[inset_4px_0_0_0_#8b5cf6] hover:bg-violet-900/20"
+                                  : isReadyToShip
+                                    ? "bg-emerald-950/30 shadow-[inset_4px_0_0_0_#10b981] hover:bg-emerald-900/20"
+                                    : needsWork
+                                      ? "shadow-[inset_4px_0_0_0_#f59e0b] hover:bg-gray-700/40 " + (index % 2 === 0 ? "bg-gray-700/25" : "")
+                                      : `hover:bg-gray-700/40 ${index % 2 === 0 ? "bg-gray-700/25" : ""}`
                         }`}
                       >
                       <td className="whitespace-nowrap py-4 px-4 text-sm font-mono">
                         <div className="flex flex-col gap-1">
                           <span className="text-blue-400">#{order.orderId}</span>
+                          {/* Multi-copy order badge */}
+                          {order.orderQuantity > 1 && (
+                            <div className="relative mt-0.5 group w-fit">
+                              <div className="absolute -inset-0.5 bg-gradient-to-r from-violet-600 to-purple-600 rounded-full blur opacity-50 group-hover:opacity-80 transition duration-500 animate-pulse"></div>
+                              <span className="relative inline-flex items-center gap-1.5 text-[10px] font-bold text-white bg-gradient-to-r from-violet-500 to-purple-600 border border-violet-400/50 px-2.5 py-1 rounded-full w-fit shadow-lg shadow-violet-500/30">
+                                <Package size={10} className="text-violet-200" />
+                                {order.orderQuantity} Copies!
+                              </span>
+                            </div>
+                          )}
                           {order.historicalOrderCount > 1 && (
                             <div className="relative mt-1 group w-fit">
                               <div className="absolute -inset-0.5 bg-gradient-to-r from-fuchsia-600 to-rose-600 rounded-full blur opacity-60 group-hover:opacity-100 transition duration-1000 group-hover:duration-200 animate-pulse"></div>
@@ -3510,11 +3518,13 @@ export default function App() {
                                 ? "bg-indigo-900/40 border border-indigo-500/50 shadow-[0_4px_20px_rgba(99,102,241,0.15)] ring-1 ring-indigo-500/30"
                                 : isCancelled
                                   ? "bg-red-950/20 border border-red-500/20 shadow-[0_2px_12px_rgba(239,68,68,0.05)]"
-                                  : isReadyToShip
-                                    ? "bg-emerald-950/40 border border-emerald-500/40 shadow-[0_2px_12px_rgba(16,185,129,0.12)]"
-                                    : needsWork
-                                      ? "bg-gray-800/90 border-l-[3px] border-l-amber-500 border border-gray-700/60 shadow-md"
-                                      : "bg-gray-800/90 border border-gray-700/50 shadow-md"
+                                  : order.orderQuantity > 1
+                                    ? "bg-violet-950/40 border border-violet-500/40 shadow-[0_2px_12px_rgba(139,92,246,0.15)] border-l-[3px] border-l-violet-500"
+                                    : isReadyToShip
+                                      ? "bg-emerald-950/40 border border-emerald-500/40 shadow-[0_2px_12px_rgba(16,185,129,0.12)]"
+                                      : needsWork
+                                        ? "bg-gray-800/90 border-l-[3px] border-l-amber-500 border border-gray-700/60 shadow-md"
+                                        : "bg-gray-800/90 border border-gray-700/50 shadow-md"
                           }`}
                         >
                           {/* ── Card Header ── */}
@@ -3541,6 +3551,16 @@ export default function App() {
                                   }`}>
                                     {isReadyToShip ? <><CheckCircle size={8} />Ready</> : <><AlertTriangle size={8} />Incomplete</>}
                                   </span>
+                                )}
+                                {/* Multi-copy badge mobile */}
+                                {order.orderQuantity > 1 && (
+                                  <div className="relative group shrink-0">
+                                    <div className="absolute -inset-0.5 bg-gradient-to-r from-violet-600 to-purple-600 rounded-full blur opacity-50 animate-pulse"></div>
+                                    <span className="relative inline-flex items-center gap-1 text-[9px] font-bold text-white bg-gradient-to-r from-violet-500 to-purple-600 border border-violet-400/50 px-2 py-0.5 rounded-full shadow-lg">
+                                      <Package size={8} className="text-violet-200" />
+                                      {order.orderQuantity} Copies
+                                    </span>
+                                  </div>
                                 )}
                                 {order.historicalOrderCount > 1 && (
                                   <div className="relative group shrink-0">

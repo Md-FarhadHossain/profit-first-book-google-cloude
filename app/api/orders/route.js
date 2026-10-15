@@ -137,11 +137,19 @@ export async function POST(request) {
           const crypto = require('crypto');
           const hashFn = (val) => val ? crypto.createHash('sha256').update(val.trim().toLowerCase()).digest('hex') : undefined;
 
-          // Normalize phone number (assuming BD country code)
-          let phoneRaw = data.number?.replace(/[^0-9]/g, '');
-          if (phoneRaw && !phoneRaw.startsWith('88')) {
-             phoneRaw = '88' + phoneRaw;
+          // Normalize phone number to BD CAPI format: 88XXXXXXXXXX (13 digits)
+          // Handles: 01XXXXXXXXX, 8801XXXXXXXXX, 880 01XXXXXXXXX, +8801XXXXXXXXX
+          let phoneRaw = data.number?.replace(/[^0-9]/g, '') || '';
+          if (phoneRaw.startsWith('880') && phoneRaw.length === 13) {
+            // already correct: 8801XXXXXXXXX
+          } else if (phoneRaw.startsWith('88') && phoneRaw.length === 13) {
+            // already correct: 8801XXXXXXXXX (same thing, just startsWith check)
+          } else if (phoneRaw.startsWith('01') && phoneRaw.length === 11) {
+            phoneRaw = '88' + phoneRaw;  // 01XXXXXXXXX → 8801XXXXXXXXX
+          } else if (phoneRaw.length === 10) {
+            phoneRaw = '880' + phoneRaw; // edge case: 10-digit without leading 0
           }
+          // else: leave as-is, let Facebook handle or reject
           
           let userFbp, userFbc, userIp, userAgent;
           
@@ -184,12 +192,22 @@ export async function POST(request) {
           };
 
           const fbGraphUrl = `https://graph.facebook.com/v22.0/${pixelId}/events?access_token=${accessToken}`;
+
+          console.log('[CAPI Recovery] Sending event for order:', inserted[0].orderId, {
+            phone: phoneRaw ? phoneRaw.slice(0, 6) + '****' : 'MISSING',
+            hasFbp: !!userFbp,
+            hasFbc: !!userFbc,
+            hasIp: !!userIp,
+            hasUserAgent: !!userAgent,
+          });
           
-          await fetch(fbGraphUrl, {
+          const capiRes = await fetch(fbGraphUrl, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(capiPayload),
           });
+          const capiResBody = await capiRes.json();
+          console.log('[CAPI Recovery] Facebook response:', JSON.stringify(capiResBody));
         }
       } catch (e) {
         console.error("Failed to send recovered CAPI event", e);

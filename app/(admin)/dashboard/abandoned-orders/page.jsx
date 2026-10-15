@@ -10,6 +10,7 @@ import {
   StickyNote, Save
 } from 'lucide-react';
 import { UAParser } from 'ua-parser-js'; 
+import getAllOrders from '@/lib/getAllorders';
 import { SteadfastPill, FraudCheckerBadge } from '@/components/SteadfastWidgets';
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
@@ -589,10 +590,14 @@ const OrderModal = ({
 
              <div className="hidden sm:block border-r border-gray-700 h-6 mx-1"></div>
              
-             {/* MIGRATE BUTTON */}
+             {/* MIGRATE BUTTON / STATUS */}
              {order.isMigrated ? (
                <div className="flex items-center gap-1.5 px-3.5 py-2 bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 rounded-lg text-xs font-bold">
                  <CheckCircle size={14} /> Migrated ({order.migratedOrderId || 'Active'})
+               </div>
+             ) : order.existingOrder ? (
+               <div className="flex items-center gap-1.5 px-3.5 py-2 bg-amber-500/10 border border-amber-500/30 text-amber-400 rounded-lg text-xs font-bold">
+                 <AlertTriangle size={14} /> Already in Dashboard ({order.existingOrder.orderId} · {order.existingOrder.status})
                </div>
              ) : (
                <button 
@@ -709,13 +714,26 @@ export default function PendingOrdersPage() {
     try {
       setLoading(true);
       
-      const response = await fetch('/api/save-partial-order', { cache: 'no-store' });
+      // Fetch both partial orders AND real orders in parallel
+      const [response, allRealOrders] = await Promise.all([
+        fetch('/api/save-partial-order', { cache: 'no-store' }),
+        getAllOrders()
+      ]);
       
       const json = await response.json();
       const rawData = json.data || [];
+
+      // Phone normalizer for matching
+      const normalize = (p) => p ? p.replace(/\D/g, '').slice(-11) : '';
       
       const processed = rawData.map((item, idx) => {
         const phone = item.number || item.marketing?.number || 'N/A';
+        const normPhone = normalize(phone);
+
+        // Find if this phone already has an active real order (for DISPLAY only — not for isMigrated)
+        const existingOrder = normPhone.length > 5
+          ? allRealOrders.find(ro => normalize(ro.customer?.phone) === normPhone)
+          : null;
         
         return {
           _id: item._id || `temp-${idx}`,
@@ -725,10 +743,16 @@ export default function PendingOrdersPage() {
           callStatus: item.phoneCallStatus || 'Pending',
           note: item.note || '',
           scheduledDate: item.scheduledDate || null,
-          // Trust ONLY the database flag - set exclusively by the explicit "Migrate to Active" action
+          // isMigrated comes ONLY from the database — set by explicit "Migrate to Active" action
           isMigrated: Boolean(item.isMigrated),
           migratedAt: item.migratedAt || null,
           migratedOrderId: item.migratedOrderId || null,
+          // existingOrder is READ-ONLY — purely for showing the "Already in Dashboard" warning badge
+          existingOrder: existingOrder ? {
+            orderId: existingOrder.orderId,
+            status: existingOrder.status,
+            date: existingOrder.date
+          } : null,
           customer: {
             name: item.name || item.marketing?.name || 'Guest',
             phone: phone
@@ -738,8 +762,6 @@ export default function PendingOrdersPage() {
           address: item.address || item.marketing?.address || 'N/A',
           clientInfo: item.clientInfo || {},
           userAgent: item.clientInfo?.userAgent || item.userAgent || '',
-          
-          // Explicitly map the fields from the root level
           shipping: item.shipping,
           shippingCost: item.shippingCost,
           totalValue: item.totalValue,
@@ -1199,7 +1221,7 @@ export default function PendingOrdersPage() {
                    filterTab === 'unmigrated' ? 'bg-blue-600 text-white shadow-sm' : 'text-gray-400 hover:text-white'
                  }`}
                >
-                 Unsubmitted ({orders.filter(o => !o.isMigrated && !o.realOrder).length})
+                 Unsubmitted ({orders.filter(o => !o.isMigrated).length})
                </button>
                <button
                  onClick={() => { setFilterTab('migrated'); setCurrentPage(1); }}
@@ -1246,10 +1268,11 @@ export default function PendingOrdersPage() {
                    <tr><td colSpan="7" className="py-16 text-center text-gray-500">No abandoned carts found.</td></tr>
                  ) : (
                    paginatedData.map((order) => {
-                     const isMigrated = order.isMigrated || !!order.realOrder;
+                     const isMigrated = order.isMigrated;
+                      const hasExisting = !!order.existingOrder;
                      const isCancelled = order.status === 'Cancelled';
                      return (
-                       <tr key={order._id} className={`group transition-all duration-200 ${isMigrated ? 'bg-[#151c2e] hover:bg-[#1a233a] opacity-85' : isCancelled ? 'bg-red-950/20 shadow-[inset_4px_0_0_0_#ef4444] hover:bg-red-900/10' : 'bg-transparent hover:bg-gray-800/40'}`}>
+                       <tr key={order._id} className={`group transition-all duration-200 ${isMigrated ? 'bg-[#151c2e] hover:bg-[#1a233a] opacity-85' : hasExisting ? 'bg-amber-950/20 shadow-[inset_4px_0_0_0_#f59e0b] hover:bg-amber-900/10' : isCancelled ? 'bg-red-950/20 shadow-[inset_4px_0_0_0_#ef4444] hover:bg-red-900/10' : 'bg-transparent hover:bg-gray-800/40'}`}>
                          <td className="py-4 px-6">
                            <div className="flex items-center gap-4">
                              <div className="flex flex-col gap-1 min-w-[130px]">
@@ -1270,9 +1293,14 @@ export default function PendingOrdersPage() {
                              </div>
                              {isMigrated && (
                                <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[10px] font-bold uppercase tracking-wider">
-                                 <CheckCircle size={12} /> Migrated ({order.migratedOrderId || order.realOrder?.orderId || 'Active'})
+                                 <CheckCircle size={12} /> Migrated ({order.migratedOrderId || 'Active'})
                                </div>
                              )}
+                              {!isMigrated && hasExisting && (
+                                <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-amber-500/10 border border-amber-500/20 text-amber-400 text-[10px] font-bold uppercase tracking-wider whitespace-nowrap">
+                                  <AlertTriangle size={12} /> In Dashboard &middot; {order.existingOrder.orderId}
+                                </div>
+                              )}
                            </div>
                          </td>
                          <td className="py-4 px-6">
@@ -1303,23 +1331,29 @@ export default function PendingOrdersPage() {
                          </td>
                          <td className="py-4 px-6">
                            <SteadfastPill phone={order.customer.phone} initialData={order.sfData} />
-                         </td>
-                         <td className="py-4 px-6">
-                           {isMigrated ? (
-                             <span className="text-xs text-emerald-400 font-medium flex items-center gap-1">
-                               <CheckCircle size={12} /> Migrated
-                             </span>
-                           ) : (
-                             <StatusDropdown status={order.status} onStatusChange={(s) => handleStatusUpdate(order._id, s)} />
-                           )}
-                         </td>
-                         <td className="py-4 px-6">
-                           {isMigrated ? (
-                             <span className="text-xs text-gray-400 font-medium italic">Confirmed</span>
-                           ) : (
-                             <CallStatusDropdown currentStatus={order.callStatus} onStatusChange={(s) => handleCallStatusUpdate(order._id, s)} />
-                           )}
-                         </td>
+                          </td>
+                          <td className="py-4 px-6">
+                            {isMigrated ? (
+                              <span className="text-xs text-emerald-400 font-medium flex items-center gap-1">
+                                <CheckCircle size={12} /> Migrated
+                              </span>
+                            ) : hasExisting ? (
+                              <span className="text-xs text-amber-400 font-bold flex items-center gap-1">
+                                <AlertTriangle size={12} /> {order.existingOrder.status}
+                              </span>
+                            ) : (
+                              <StatusDropdown status={order.status} onStatusChange={(s) => handleStatusUpdate(order._id, s)} />
+                            )}
+                          </td>
+                          <td className="py-4 px-6">
+                            {isMigrated ? (
+                              <span className="text-xs text-gray-400 font-medium italic">Confirmed</span>
+                            ) : hasExisting ? (
+                              <span className="text-xs text-amber-300 font-medium italic">Already Ordered</span>
+                            ) : (
+                              <CallStatusDropdown currentStatus={order.callStatus} onStatusChange={(s) => handleCallStatusUpdate(order._id, s)} />
+                            )}
+                          </td>
                          <td className="py-4 px-6 text-right">
                            <div className="flex items-center justify-end gap-2">
                              {/* NOTE BUTTON WITH STATE COLOR */}
@@ -1383,6 +1417,7 @@ export default function PendingOrdersPage() {
           ) : (
             paginatedData.map((order) => {
               const isMigrated = order.isMigrated;
+              const hasExisting = !!order.existingOrder;
               return (
                 <div
                   key={order._id}
@@ -1390,11 +1425,12 @@ export default function PendingOrdersPage() {
                   className={`flex flex-col gap-0 active:scale-[0.99] transition-transform relative overflow-hidden rounded-2xl cursor-pointer ${
                     isMigrated
                       ? "bg-indigo-900/30 border border-indigo-500/60 shadow-[0_4px_20px_rgba(99,102,241,0.2)] ring-1 ring-indigo-500/40 z-10"
-                      : order.status === "Cancelled"
-                        ? "bg-red-950/20 border border-red-500/20 shadow-[0_2px_12px_rgba(239,68,68,0.05)]"
-                        : "bg-gray-800/90 border border-gray-700/50 shadow-md"
-                  }`}
-                >
+                      : hasExisting
+                        ? "bg-amber-900/20 border border-amber-500/40 shadow-[0_4px_20px_rgba(245,158,11,0.15)]"
+                        : order.status === "Cancelled"
+                          ? "bg-red-950/20 border border-red-500/20 shadow-[0_2px_12px_rgba(239,68,68,0.05)]"
+                          : "bg-gray-800/90 border border-gray-700/50 shadow-md"
+                  }`}>
                   {/* ── Card Header ── */}
                   <div className="px-4 pt-4 pb-3 flex items-start gap-3">
                     {/* Left: Avatar circle */}
@@ -1415,6 +1451,11 @@ export default function PendingOrdersPage() {
                         {isMigrated && (
                           <span className="inline-flex items-center gap-1 text-[9px] font-bold px-1.5 py-0.5 rounded-full shrink-0 text-emerald-300 bg-emerald-500/20 border border-emerald-500/30">
                             <CheckCircle size={8} /> Migrated
+                          </span>
+                        )}
+                        {!isMigrated && hasExisting && (
+                          <span className="inline-flex items-center gap-1 text-[9px] font-bold px-1.5 py-0.5 rounded-full shrink-0 text-amber-300 bg-amber-500/20 border border-amber-500/30">
+                            <AlertTriangle size={8} /> In Dashboard
                           </span>
                         )}
                       </div>
@@ -1517,11 +1558,15 @@ export default function PendingOrdersPage() {
                     onClick={(e) => e.stopPropagation()}
                   >
                     {/* Status badge */}
-                    {isMigrated ? (
-                       <span className="text-[10px] text-emerald-400 font-semibold flex items-center gap-1">
-                         <CheckCircle size={10} /> Migrated ({order.migratedOrderId || order.realOrder?.orderId || 'Active'})
-                       </span>
-                    ) : (
+                     {isMigrated ? (
+                        <span className="text-[10px] text-emerald-400 font-semibold flex items-center gap-1">
+                          <CheckCircle size={10} /> Migrated ({order.migratedOrderId || 'Active'})
+                        </span>
+                     ) : hasExisting ? (
+                        <span className="text-[10px] text-amber-400 font-bold flex items-center gap-1">
+                          <AlertTriangle size={10} /> {order.existingOrder.orderId} is Active
+                        </span>
+                     ) : (
                        <div className="relative">
                          <select
                            value={order.status || 'Processing'}
@@ -1544,9 +1589,11 @@ export default function PendingOrdersPage() {
 
                     {/* Call status – takes remaining space */}
                     <div className="ml-auto">
-                      {isMigrated ? (
-                         <span className="text-[10px] text-gray-500 font-medium italic">Confirmed</span>
-                      ) : (
+                       {isMigrated ? (
+                          <span className="text-[10px] text-gray-500 font-medium italic">Confirmed</span>
+                       ) : hasExisting ? (
+                          <span className="text-[10px] text-amber-300 font-medium italic">Already Ordered</span>
+                       ) : (
                         <div className="relative">
                            <select
                              value={order.callStatus || 'Pending'}

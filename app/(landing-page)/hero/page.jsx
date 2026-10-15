@@ -338,7 +338,14 @@ const HeroSection = () => {
             currency: CURRENCY,
             postId: POST_ID.toString(),
             postType: POST_TYPE,
-            clientInfo: clientInfo,
+            clientInfo: {
+                ip: clientInfo.ip,
+                userAgent: clientInfo.userAgent,
+                deviceId: behaviorData.device_id,
+                // Capture fbp & fbc at save time so they're available during abandoned-cart migration CAPI
+                fbp: getClientCookie('_fbp') || localStorage.getItem('_fbp_backup') || undefined,
+                fbc: getClientCookie('_fbc') || localStorage.getItem('_fbc_constructed') || undefined,
+            },
             marketing: marketingData,
             localTime: new Date().toLocaleString()
         };

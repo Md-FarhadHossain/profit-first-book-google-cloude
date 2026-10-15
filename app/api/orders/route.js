@@ -106,27 +106,26 @@ export async function POST(request) {
       console.error("SMS Failed:", smsError);
     }
 
-    // Mark partial order (abandoned cart) as migrated rather than deleting, preserving analytics
+    // Cleanup the abandoned cart (partial_orders) that directly links to this submission.
+    // NOTE: Migration marking (isMigrated=true) is done ONLY from the abandoned orders panel
+    // when explicitly converting an abandoned cart. On a normal order submission we simply
+    // delete the partial order so it disappears from the abandoned list.
     try {
       const deviceId = data.deviceId || data.clientInfo?.deviceId;
-      const targetCondition = (deviceId && data.number)
-        ? or(eq(partialOrders.deviceId, deviceId), eq(partialOrders.number, data.number))
-        : data.number
-          ? eq(partialOrders.number, data.number)
-          : deviceId
-            ? eq(partialOrders.deviceId, deviceId)
-            : null;
-
-      if (targetCondition) {
-        await db.update(partialOrders).set({
-          isMigrated: true,
-          migratedOrderId: inserted[0]?.orderId || null,
-          migratedAt: new Date().toISOString(),
-          status: 'Migrated'
-        }).where(targetCondition);
+      if (deviceId && data.number) {
+        await db.delete(partialOrders).where(
+          or(
+            eq(partialOrders.deviceId, deviceId),
+            eq(partialOrders.number, data.number)
+          )
+        );
+      } else if (data.number) {
+        await db.delete(partialOrders).where(eq(partialOrders.number, data.number));
+      } else if (deviceId) {
+        await db.delete(partialOrders).where(eq(partialOrders.deviceId, deviceId));
       }
     } catch (cleanupError) {
-      console.error("Failed to mark partial order as migrated:", cleanupError);
+      console.error("Failed to cleanup partial order:", cleanupError);
     }
     // CAPI Recovery Event
     if (data.isRecoveredOrder && inserted[0]?.orderId) {

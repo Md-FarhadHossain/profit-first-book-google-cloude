@@ -10,7 +10,6 @@ import {
   StickyNote, Save
 } from 'lucide-react';
 import { UAParser } from 'ua-parser-js'; 
-import getAllOrders from '@/lib/getAllorders';
 import { SteadfastPill, FraudCheckerBadge } from '@/components/SteadfastWidgets';
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
@@ -591,9 +590,9 @@ const OrderModal = ({
              <div className="hidden sm:block border-r border-gray-700 h-6 mx-1"></div>
              
              {/* MIGRATE BUTTON */}
-             {order.isMigrated || !!order.realOrder ? (
+             {order.isMigrated ? (
                <div className="flex items-center gap-1.5 px-3.5 py-2 bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 rounded-lg text-xs font-bold">
-                 <CheckCircle size={14} /> Migrated ({order.migratedOrderId || order.realOrder?.orderId || 'Active'})
+                 <CheckCircle size={14} /> Migrated ({order.migratedOrderId || 'Active'})
                </div>
              ) : (
                <button 
@@ -683,7 +682,7 @@ export default function PendingOrdersPage() {
       return !isNaN(d.getTime()) && d.getTime() >= firstDayOfMonth;
     };
 
-    const isMigratedOrder = (o) => Boolean(o.isMigrated || o.realOrder);
+    const isMigratedOrder = (o) => Boolean(o.isMigrated);
 
     const todayOrders = orders.filter(o => isToday(o.createdAt));
     const yesterdayOrders = orders.filter(o => isYesterday(o.createdAt));
@@ -710,10 +709,7 @@ export default function PendingOrdersPage() {
     try {
       setLoading(true);
       
-      const [response, allRealOrders] = await Promise.all([
-        fetch('/api/save-partial-order', { cache: 'no-store' }),
-        getAllOrders()
-      ]);
+      const response = await fetch('/api/save-partial-order', { cache: 'no-store' });
       
       const json = await response.json();
       const rawData = json.data || [];
@@ -721,23 +717,18 @@ export default function PendingOrdersPage() {
       const processed = rawData.map((item, idx) => {
         const phone = item.number || item.marketing?.number || 'N/A';
         
-        // Normalize phone number to match safely
-        const normalize = (p) => p ? p.replace(/\D/g, '').slice(-11) : '';
-        const normPhone = normalize(phone);
-        const matchingOrder = normPhone.length > 5 ? allRealOrders.find(ro => normalize(ro.customer?.phone) === normPhone) : null;
-        const isMigrated = Boolean(item.isMigrated || matchingOrder);
-        
         return {
           _id: item._id || `temp-${idx}`,
           orderId: item.orderId || item.items?.[0]?.postId || 'N/A', 
-          createdAt: item.createdAt || new Date().toISOString(),
+          createdAt: item.createdAt || item.date || new Date().toISOString(),
           status: item.marketing?.status || item.status || 'Processing',
           callStatus: item.phoneCallStatus || 'Pending',
           note: item.note || '',
           scheduledDate: item.scheduledDate || null,
-          isMigrated: isMigrated,
-          migratedAt: item.migratedAt || matchingOrder?.date || null,
-          migratedOrderId: item.migratedOrderId || matchingOrder?.orderId || null,
+          // Trust ONLY the database flag - set exclusively by the explicit "Migrate to Active" action
+          isMigrated: Boolean(item.isMigrated),
+          migratedAt: item.migratedAt || null,
+          migratedOrderId: item.migratedOrderId || null,
           customer: {
             name: item.name || item.marketing?.name || 'Guest',
             phone: phone
@@ -752,7 +743,6 @@ export default function PendingOrdersPage() {
           shipping: item.shipping,
           shippingCost: item.shippingCost,
           totalValue: item.totalValue,
-          realOrder: matchingOrder || null,
           sfData: item.sfData
         };
       });
@@ -956,10 +946,10 @@ export default function PendingOrdersPage() {
       if (!matchesSearch) return false;
 
       if (filterTab === 'unmigrated') {
-        return !o.isMigrated && !o.realOrder;
+        return !o.isMigrated;
       }
       if (filterTab === 'migrated') {
-        return o.isMigrated || !!o.realOrder;
+        return o.isMigrated;
       }
       return true;
     });
@@ -975,11 +965,11 @@ export default function PendingOrdersPage() {
 
     // Status breakdown
     const statusCounts = {
-      Processing: orders.filter(o => !o.isMigrated && !o.realOrder && (o.status === 'Processing' || !o.status)).length,
+      Processing: orders.filter(o => !o.isMigrated && (o.status === 'Processing' || !o.status)).length,
       Cancelled: orders.filter(o => o.status === 'Cancelled').length,
       Fake: orders.filter(o => o.status === 'Fake').length,
       Duplicate: orders.filter(o => o.status === 'Duplicate').length,
-      Migrated: orders.filter(o => o.isMigrated || !!o.realOrder).length,
+      Migrated: orders.filter(o => o.isMigrated).length,
     };
 
     // Call status breakdown
@@ -1392,7 +1382,7 @@ export default function PendingOrdersPage() {
             </div>
           ) : (
             paginatedData.map((order) => {
-              const isMigrated = order.isMigrated || !!order.realOrder;
+              const isMigrated = order.isMigrated;
               return (
                 <div
                   key={order._id}

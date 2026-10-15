@@ -719,11 +719,11 @@ const HeroSection = () => {
         <div className="flex flex-col sm:flex-row items-center justify-center gap-4 max-w-lg mx-auto">
           {/* Direct Call Button */}
           <a 
-            href="tel:01629786168" 
+            href="tel:01410860683" 
             className="flex items-center justify-center gap-2 w-full sm:w-auto bg-white border-2 border-[#ff6b00] text-[#ff6b00] hover:bg-[#ff6b00] hover:text-white py-3.5 px-6 rounded-xl text-lg font-bold shadow-sm hover:shadow-md transition-all duration-300 group"
           >
             <i className="fas fa-phone-alt group-hover:animate-bounce"></i>
-            01629786168
+            01410860683
           </a>
           
           {/* WhatsApp Button */}

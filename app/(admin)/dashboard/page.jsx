@@ -2212,7 +2212,6 @@ export default function App() {
         courierNote: order.courierNote || null,
         scheduledDate: order.scheduledDate || null,
         historicalOrderCount: order.historicalOrderCount || 1,
-        orderQuantity: order.orderQuantity || 1,
       }));
       
       setOrders(transformedData);
@@ -3341,28 +3340,16 @@ export default function App() {
                               ? "bg-indigo-900/40 shadow-[inset_4px_0_0_0_#818cf8] hover:bg-indigo-900/60"
                               : isCancelled
                                 ? "bg-red-950/20 shadow-[inset_4px_0_0_0_#ef4444] hover:bg-red-900/10"
-                                : order.orderQuantity > 1
-                                  ? "bg-violet-950/30 shadow-[inset_4px_0_0_0_#8b5cf6] hover:bg-violet-900/20"
-                                  : isReadyToShip
-                                    ? "bg-emerald-950/30 shadow-[inset_4px_0_0_0_#10b981] hover:bg-emerald-900/20"
-                                    : needsWork
-                                      ? "shadow-[inset_4px_0_0_0_#f59e0b] hover:bg-gray-700/40 " + (index % 2 === 0 ? "bg-gray-700/25" : "")
-                                      : `hover:bg-gray-700/40 ${index % 2 === 0 ? "bg-gray-700/25" : ""}`
+                                : isReadyToShip
+                                  ? "bg-emerald-950/30 shadow-[inset_4px_0_0_0_#10b981] hover:bg-emerald-900/20"
+                                  : needsWork
+                                    ? "shadow-[inset_4px_0_0_0_#f59e0b] hover:bg-gray-700/40 " + (index % 2 === 0 ? "bg-gray-700/25" : "")
+                                    : `hover:bg-gray-700/40 ${index % 2 === 0 ? "bg-gray-700/25" : ""}`
                         }`}
                       >
                       <td className="whitespace-nowrap py-4 px-4 text-sm font-mono">
                         <div className="flex flex-col gap-1">
                           <span className="text-blue-400">#{order.orderId}</span>
-                          {/* Multi-copy order badge */}
-                          {order.orderQuantity > 1 && (
-                            <div className="relative mt-0.5 group w-fit">
-                              <div className="absolute -inset-0.5 bg-gradient-to-r from-violet-600 to-purple-600 rounded-full blur opacity-50 group-hover:opacity-80 transition duration-500 animate-pulse"></div>
-                              <span className="relative inline-flex items-center gap-1.5 text-[10px] font-bold text-white bg-gradient-to-r from-violet-500 to-purple-600 border border-violet-400/50 px-2.5 py-1 rounded-full w-fit shadow-lg shadow-violet-500/30">
-                                <Package size={10} className="text-violet-200" />
-                                {order.orderQuantity} Copies!
-                              </span>
-                            </div>
-                          )}
                           {order.historicalOrderCount > 1 && (
                             <div className="relative mt-1 group w-fit">
                               <div className="absolute -inset-0.5 bg-gradient-to-r from-fuchsia-600 to-rose-600 rounded-full blur opacity-60 group-hover:opacity-100 transition duration-1000 group-hover:duration-200 animate-pulse"></div>
@@ -3518,9 +3505,7 @@ export default function App() {
                                 ? "bg-indigo-900/40 border border-indigo-500/50 shadow-[0_4px_20px_rgba(99,102,241,0.15)] ring-1 ring-indigo-500/30"
                                 : isCancelled
                                   ? "bg-red-950/20 border border-red-500/20 shadow-[0_2px_12px_rgba(239,68,68,0.05)]"
-                                  : order.orderQuantity > 1
-                                    ? "bg-violet-950/40 border border-violet-500/40 shadow-[0_2px_12px_rgba(139,92,246,0.15)] border-l-[3px] border-l-violet-500"
-                                    : isReadyToShip
+                                  : isReadyToShip
                                       ? "bg-emerald-950/40 border border-emerald-500/40 shadow-[0_2px_12px_rgba(16,185,129,0.12)]"
                                       : needsWork
                                         ? "bg-gray-800/90 border-l-[3px] border-l-amber-500 border border-gray-700/60 shadow-md"
@@ -3551,16 +3536,6 @@ export default function App() {
                                   }`}>
                                     {isReadyToShip ? <><CheckCircle size={8} />Ready</> : <><AlertTriangle size={8} />Incomplete</>}
                                   </span>
-                                )}
-                                {/* Multi-copy badge mobile */}
-                                {order.orderQuantity > 1 && (
-                                  <div className="relative group shrink-0">
-                                    <div className="absolute -inset-0.5 bg-gradient-to-r from-violet-600 to-purple-600 rounded-full blur opacity-50 animate-pulse"></div>
-                                    <span className="relative inline-flex items-center gap-1 text-[9px] font-bold text-white bg-gradient-to-r from-violet-500 to-purple-600 border border-violet-400/50 px-2 py-0.5 rounded-full shadow-lg">
-                                      <Package size={8} className="text-violet-200" />
-                                      {order.orderQuantity} Copies
-                                    </span>
-                                  </div>
                                 )}
                                 {order.historicalOrderCount > 1 && (
                                   <div className="relative group shrink-0">

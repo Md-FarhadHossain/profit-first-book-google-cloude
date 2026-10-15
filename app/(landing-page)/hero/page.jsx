@@ -33,22 +33,12 @@ const POST_ID = 913;
 const POST_TYPE = "product";
 const API_URL = "/api";
 
-// --- COPY OPTIONS ---
-const COPY_OPTIONS = [
-  { value: 1, label: "১ কপি" },
-  { value: 2, label: "২ কপি" },
-  { value: 3, label: "৩ কপি" },
-  { value: 4, label: "৪ কপি" },
-  { value: 5, label: "৫ কপি" },
-];
-
 const HeroSection = () => {
   // --- STATE FOR BANNING ---
   // --- STATE FOR BANNING - REMOVED ---
   // const [isBanned, setIsBanned] = useState(false);
   // const [isCheckingBan, setIsCheckingBan] = useState(true);
   const [shipping, setShipping] = useState("outside-dhaka");
-  const [quantity, setQuantity] = useState(1);
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [checkoutStarted, setCheckoutStarted] = useState(false);
@@ -440,8 +430,8 @@ const HeroSection = () => {
       const name = formData.name;
       const number = formData.number.trim();
       const address = formData.address;
-      const shippingCost = quantity > 1 ? 0 : (shipping === "outside-dhaka" ? 99.0 : 60.0);
-      const totalValue = (PRODUCT_PRICE * quantity) + shippingCost;
+      const shippingCost = shipping === "outside-dhaka" ? 99.0 : 60.0;
+      const totalValue = PRODUCT_PRICE + shippingCost;
       const currentDeviceId = behaviorData.device_id || localStorage.getItem("device_id") || "unknown";
 
       const orderData = {
@@ -449,7 +439,7 @@ const HeroSection = () => {
         shipping: shipping === "outside-dhaka" ? "ঢাকার বাহিরে" : "ঢাকার ভিতরে",
         shippingCost, totalValue,
         status: "Processing", phoneCallStatus: "Pending",
-        items: [{ item_id: PRODUCT_ID, item_name: PRODUCT_NAME, price: PRODUCT_PRICE, item_category: PRODUCT_CATEGORY, quantity: quantity }],
+        items: [{ item_id: PRODUCT_ID, item_name: PRODUCT_NAME, price: PRODUCT_PRICE, item_category: PRODUCT_CATEGORY, quantity: 1 }],
         currency: CURRENCY, postId: POST_ID.toString(), postType: POST_TYPE,
         clientInfo: { 
             ip: clientInfo.ip, 
@@ -505,7 +495,7 @@ const HeroSection = () => {
         productName: PRODUCT_NAME,
         categoryName: PRODUCT_CATEGORY,
         price: PRODUCT_PRICE.toString(),
-        quantity: quantity.toString(),
+        quantity: "1",
       });
 
       window.location.href = `/thank-you?${params.toString()}`;
@@ -517,8 +507,7 @@ const HeroSection = () => {
     }
   };
   
-  const shippingCostValue = quantity > 1 ? 0 : (shipping === "outside-dhaka" ? 99 : 60);
-  const calculatedTotal = (PRODUCT_PRICE * quantity) + shippingCostValue;
+  const calculatedTotal = PRODUCT_PRICE + (shipping === "outside-dhaka" ? 99 : 60);
 
   // --- RENDER LOGIC: THE TRAP ---
   // --- RENDER LOGIC: THE TRAP - REMOVED ---
@@ -629,47 +618,6 @@ const HeroSection = () => {
             id="billing_address_1"
           />
 
-          {/* ── QUANTITY SELECTOR (always visible) ── */}
-          <div>
-            <div className="flex items-center gap-2 mb-2">
-              <span className="text-xl select-none">📚</span>
-              <span className="text-base font-semibold text-gray-700">কপির সংখ্যা বেছে নিন</span>
-            </div>
-            <div className="grid grid-cols-5 gap-2">
-              {COPY_OPTIONS.map((option) => {
-                const isSelected = quantity === option.value;
-                return (
-                  <button
-                    key={option.value}
-                    type="button"
-                    id={`quantity-option-${option.value}`}
-                    disabled={isSubmitting}
-                    onClick={() => setQuantity(option.value)}
-                    className={`relative flex items-center justify-center py-3 rounded-xl border-2 font-bold transition-all duration-200 ${
-                      isSelected
-                        ? 'border-green-500 bg-green-500 text-white shadow-md shadow-green-200 scale-105'
-                        : 'border-gray-200 bg-white text-gray-600 hover:border-green-300 hover:bg-green-50/60'
-                    } ${isSubmitting ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
-                  >
-                    <span className="text-lg font-bold">{option.label.split(' ')[0]}</span>
-                  </button>
-                );
-              })}
-            </div>
-
-            {/* ── FREE DELIVERY BANNER ── */}
-            {quantity > 1 ? (
-              <div className="mt-2 w-full flex items-center justify-center gap-2 bg-green-500 text-white rounded-xl py-3 px-4">
-                <span className="text-xl">🎉</span>
-                <span className="text-base font-bold">অভিনন্দন! আপনি ডেলিভারি চার্জ ফ্রি পাচ্ছেন</span>
-              </div>
-            ) : (
-              <div className="mt-2 w-full flex items-center justify-center gap-2 bg-orange-50 border-2 border-orange-300 border-dashed rounded-xl py-3 px-4">
-                <span className="text-xl">🔥</span>
-                <span className="text-2xl font-bold text-orange-700">২ কপি নিলেই ডেলিভারি একদম ফ্রি!</span>
-              </div>
-            )}
-          </div>
           <div className="w-full">
             <h2 className="text-2xl font-semibold mb-4">Delivery (ডেলিভারি চার্জ)</h2>
             <RadioGroup
@@ -695,14 +643,7 @@ const HeroSection = () => {
                   />
                   <span className="text-2xl font-medium">ঢাকার বাহিরে:</span>
                 </div>
-                {quantity > 1 ? (
-                  <div className="flex items-center gap-2">
-                    <span className="text-base font-medium text-gray-400 line-through">99৳</span>
-                    <span className="text-sm font-bold text-green-600 bg-green-100 px-2 py-0.5 rounded-full">ফ্রি</span>
-                  </div>
-                ) : (
-                  <span className="font-bold text-gray-700">99৳</span>
-                )}
+                <span className="font-bold text-gray-700">99.00৳</span>
               </Label>
               <Label
                 htmlFor="inside-dhaka"
@@ -721,50 +662,26 @@ const HeroSection = () => {
                   />
                   <span className="text-2xl font-medium">ঢাকার ভিতরে:</span>
                 </div>
-                {quantity > 1 ? (
-                  <div className="flex items-center gap-2">
-                    <span className="text-base font-medium text-gray-400 line-through">60৳</span>
-                    <span className="text-sm font-bold text-green-600 bg-green-100 px-2 py-0.5 rounded-full">ফ্রি</span>
-                  </div>
-                ) : (
-                  <span className="font-bold text-gray-700">60৳</span>
-                )}
+                <span className="font-bold text-gray-700">60.00৳</span>
               </Label>
             </RadioGroup>
           </div>
           <div className="bg-gray-50 p-4 rounded-lg border">
-            {/* Book price row */}
-            <div className="flex justify-between items-center mb-2">
-              <span className="text-lg">
-                বই মূল্য
-                {quantity > 1 && (
-                  <span className="ml-2 text-sm text-gray-500 font-normal">
-                    ({quantity} × {PRODUCT_PRICE}৳)
-                  </span>
-                )}
-              </span>
-              <span className={`text-lg font-semibold transition-all duration-300 ${
-                quantity > 1 ? 'text-green-600' : 'text-gray-800'
-              }`}>
-                {(PRODUCT_PRICE * quantity).toLocaleString()}৳
-              </span>
+             <div className="flex justify-between items-center mb-2">
+              <span className="text-lg">বই মূল্য:</span>
+              <span className="text-lg font-medium">{PRODUCT_PRICE}৳</span>
             </div>
             <div className="flex justify-between items-center mb-2">
               <span className="text-lg">ডেলিভারি চার্জ:</span>
-              {quantity > 1 ? (
-                <div className="flex items-center gap-2">
-                  <span className="text-base text-gray-400 line-through">{shipping === 'outside-dhaka' ? '99' : '60'}৳</span>
-                  <span className="text-sm font-bold text-green-600">ফ্রি 🎉</span>
-                </div>
-              ) : (
-                <span className="text-lg font-medium">{shippingCostValue}৳</span>
-              )}
+              <span className="text-lg font-medium">
+                {shipping === "outside-dhaka" ? "99" : "60"}৳
+              </span>
             </div>
             <div className="border-t pt-2 mt-2">
               <div className="flex justify-between items-center">
                 <span className="text-xl font-bold">মোট:</span>
-                <span className="text-xl font-bold text-green-600 transition-all duration-300">
-                  {calculatedTotal.toLocaleString()}৳
+                <span className="text-xl font-bold text-green-600">
+                  {calculatedTotal}৳
                 </span>
               </div>
             </div>
@@ -774,10 +691,7 @@ const HeroSection = () => {
             type="submit"
             disabled={isSubmitting || !clientInfo.ip}
           >
-            {isSubmitting
-              ? "অর্ডার প্রসেসিং..."
-              : `অর্ডার করুন ${calculatedTotal.toLocaleString()}৳`
-            }
+            {isSubmitting ? "অর্ডার প্রসেসিং..." : `অর্ডার করুন ${calculatedTotal}৳`}
           </Button>
         </form>
         <div className="text-center mt-6 text-gray-600">

@@ -266,13 +266,7 @@ export async function GET(request) {
       returnedAt: o.returnedAt || null,
       courierNote: o.courierNote || null,
       scheduledDate: o.scheduledDate || null,
-      historicalOrderCount: orderOccurrences[o.id] || 1,
-      orderQuantity: (() => {
-        try {
-          const items = typeof o.items === 'string' ? JSON.parse(o.items) : o.items;
-          return (items && items[0] && items[0].quantity) ? Number(items[0].quantity) : 1;
-        } catch { return 1; }
-      })()
+      historicalOrderCount: orderOccurrences[o.id] || 1
     }));
     
     return NextResponse.json(mappedOrders);
